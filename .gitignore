@@ -4,3 +4,7 @@ __pycache__/
 prompt.py
 venv/
 .venv/
+
+prompt.js
+
+database.py
