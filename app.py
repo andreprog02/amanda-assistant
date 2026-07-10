@@ -24,20 +24,35 @@ app = FastAPI()
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 MODEL = os.getenv("MODEL", "claude-sonnet-4-6")
 
-# Inicializa banco na startup
-@app.on_event("startup")
-def startup():
+# Inicializa banco direto (fora do evento de startup)
+db_available = False
+try:
     init_db()
+    db_available = True
+except Exception:
+    pass
 
 # Conversa atual
 current_conversation_id = None
 
 def get_or_create_conversation() -> int:
     global current_conversation_id
+    if not db_available:
+        return 0
     if current_conversation_id is None:
         current_conversation_id = create_conversation()
         print(f"📝 Nova conversa #{current_conversation_id}")
     return current_conversation_id
+
+
+def safe_save_message(conv_id, role, content):
+    """Salva mensagem se o banco estiver disponível."""
+    if db_available and conv_id:
+        try:
+            return save_message(conv_id, role, content)
+        except:
+            pass
+    return None
 
 # Whisper
 whisper_model = None
@@ -149,9 +164,10 @@ IMPORTANTE: Quando você não souber algo de verdade, admita com charme. "Ai, is
 
     prompt = AMANDA_PROMPT + "\n\n" + time_context
 
-    memories = get_memories_summary()
-    if memories:
-        prompt += "\n\n" + memories
+    if db_available:
+        memories = get_memories_summary()
+        if memories:
+            prompt += "\n\n" + memories
 
     news = get_news_context()
     if news:
@@ -199,6 +215,8 @@ def extract_emotion(text: str) -> tuple:
 
 def extract_memories(user_text: str, msg_id: int):
     """Usa o Claude pra extrair fatos importantes da mensagem do usuário."""
+    if not db_available:
+        return
     try:
         response = client.messages.create(
             model=MODEL,
@@ -305,7 +323,7 @@ async def chat(request: Request):
 
         # Salva mensagem do usuário
         user_content = messages[-1]["content"] if messages else ""
-        user_msg_id = save_message(conv_id, "user", user_content)
+        user_msg_id = safe_save_message(conv_id, "user", user_content)
 
         # Extrai memórias em background
         if user_content:
@@ -326,7 +344,7 @@ async def chat(request: Request):
         print(f"😊 Emoção: {emotion}")
 
         # Salva resposta da Amanda (sem a tag)
-        save_message(conv_id, "assistant", reply)
+        safe_save_message(conv_id, "assistant", reply)
 
         # Gera áudio (do texto limpo)
         audio_b64 = None
@@ -364,7 +382,7 @@ async def image_chat(
         content_type = photo.content_type or "image/jpeg"
 
         user_text = message if message else "olha essa foto"
-        save_message(conv_id, "user", f"[enviou uma foto] {user_text}")
+        safe_save_message(conv_id, "user", f"[enviou uma foto] {user_text}")
 
         if user_text:
             extract_memories(user_text, None)
@@ -406,7 +424,7 @@ async def image_chat(
         emotion, reply = extract_emotion(raw_reply)
         print(f"📸 Foto recebida | Emoção: {emotion}")
 
-        save_message(conv_id, "assistant", reply)
+        safe_save_message(conv_id, "assistant", reply)
 
         audio_b64_reply = None
         try:
@@ -456,7 +474,7 @@ async def voice_chat(
             return JSONResponse({"user_text": "", "reply": "Não consegui ouvir... fala de novo?", "audio": None})
 
         # 2. Salva mensagem e extrai memórias
-        user_msg_id = save_message(conv_id, "user", user_text)
+        user_msg_id = safe_save_message(conv_id, "user", user_text)
         extract_memories(user_text, user_msg_id)
 
         # 3. Monta histórico + resposta
@@ -469,7 +487,7 @@ async def voice_chat(
         print(f"😊 Emoção: {emotion}")
 
         # 4. Salva resposta (sem tag)
-        save_message(conv_id, "assistant", reply)
+        safe_save_message(conv_id, "assistant", reply)
 
         # 5. Gera áudio
         audio_b64 = None
