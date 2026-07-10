@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Amanda</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #f0ece4;
+      user-select: none;
+    }
+    #app { display: flex; flex-direction: column; height: 100vh; }
+
+    .header {
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fff;
+      border-bottom: 1px solid #e5e0d8;
+      flex-shrink: 0;
+      -webkit-app-region: drag;
+    }
+    .header-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .header-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .header-name { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+    .header-status { font-size: 11px; margin-top: 1px; }
+    .status-online { color: #6bab72; }
+    .status-typing { color: #e8915a; }
+    .status-listening { color: #e85a5a; }
+
+    /* Avatar display area */
+    .avatar-area {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: center;
+      background: linear-gradient(180deg, #fff 0%, #f0ece4 100%);
+      padding: 8px 0 4px;
+      position: relative;
+      overflow: hidden;
+    }
+    .avatar-img {
+      height: 220px;
+      object-fit: contain;
+      transition: opacity 0.3s ease;
+    }
+    .avatar-img.fade { opacity: 0; }
+
+    /* Speaking indicator */
+    .speaking-indicator {
+      display: none;
+      position: absolute;
+      bottom: 12px;
+      right: 20px;
+      align-items: center;
+      gap: 3px;
+      padding: 4px 10px;
+      background: rgba(255,255,255,0.85);
+      border-radius: 12px;
+      font-size: 10px;
+      color: #6bab72;
+    }
+    .speaking-indicator.active { display: flex; }
+    .speaking-bar { width: 3px; height: 10px; background: #6bab72; border-radius: 2px; }
+    .speaking-bar:nth-child(1) { animation: speakBar 0.8s ease-in-out 0s infinite; }
+    .speaking-bar:nth-child(2) { animation: speakBar 0.8s ease-in-out 0.15s infinite; }
+    .speaking-bar:nth-child(3) { animation: speakBar 0.8s ease-in-out 0.3s infinite; }
+    .speaking-bar:nth-child(4) { animation: speakBar 0.8s ease-in-out 0.45s infinite; }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .messages::-webkit-scrollbar { width: 4px; }
+    .messages::-webkit-scrollbar-thumb { background: #ccc5ba; border-radius: 4px; }
+
+    .msg-row { display: flex; animation: fadeIn 0.25s ease-out; }
+    .msg-row.user { justify-content: flex-end; }
+    .msg-row.assistant { justify-content: flex-start; }
+    .msg-bubble {
+      max-width: 85%;
+      padding: 9px 13px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #1a1a1a;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+      user-select: text;
+    }
+    .msg-row.user .msg-bubble { background: #d9f0d4; border-radius: 16px 16px 4px 16px; }
+    .msg-row.assistant .msg-bubble { background: #fff; border-radius: 16px 16px 16px 4px; }
+
+    .typing-row { display: flex; align-items: flex-start; animation: fadeIn 0.25s ease-out; }
+    .typing-dots {
+      display: flex; gap: 5px; padding: 12px 14px;
+      background: #fff; border-radius: 16px 16px 16px 4px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+    .typing-dot { width: 6px; height: 6px; border-radius: 50%; background: #b0b8c1; }
+    .typing-dot:nth-child(1) { animation: bounce 1.2s ease-in-out 0s infinite; }
+    .typing-dot:nth-child(2) { animation: bounce 1.2s ease-in-out 0.15s infinite; }
+    .typing-dot:nth-child(3) { animation: bounce 1.2s ease-in-out 0.3s infinite; }
+
+    .input-area {
+      padding: 10px 14px 14px;
+      background: #fff;
+      border-top: 1px solid #e5e0d8;
+      flex-shrink: 0;
+    }
+    .input-row { display: flex; gap: 8px; align-items: center; }
+    .input-field {
+      flex: 1; padding: 10px 14px; border-radius: 20px;
+      border: 1.5px solid #ddd6cc; background: #faf8f4;
+      color: #1a1a1a; font-size: 13.5px; font-family: inherit;
+      outline: none; transition: border-color 0.2s;
+    }
+    .input-field:focus { border-color: #b8a88a; }
+    .input-field::placeholder { color: #b0a898; }
+
+    .btn {
+      width: 36px; height: 36px; border-radius: 50%; border: none;
+      color: #fff; font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; flex-shrink: 0;
+    }
+    .send-btn { background: #ddd6cc; cursor: default; }
+    .send-btn.active { background: #6bab72; cursor: pointer; box-shadow: 0 2px 8px rgba(107,171,114,0.25); }
+    .mic-btn { background: #6bab72; cursor: pointer; }
+    .mic-btn:hover { background: #5a9a62; }
+    .mic-btn.recording { background: #e85a5a; animation: pulse-mic 1.5s ease-in-out infinite; }
+    .mic-btn.processing { background: #e8915a; cursor: wait; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-6px); opacity: 1; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-mic {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(232,90,90,0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(232,90,90,0); }
+    }
+    @keyframes speakBar {
+      0%, 100% { height: 4px; }
+      50% { height: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <div class="header">
+    <div class="header-avatar">
+      <img src="/static/expressions/neutral.png" id="headerAvatarImg">
+    </div>
+    <div>
+      <div class="header-name">Amanda</div>
+      <div class="header-status" id="statusText"><span class="status-online">online</span></div>
+    </div>
+  </div>
+
+  <div class="avatar-area">
+    <img class="avatar-img" id="avatarImg" src="/static/expressions/neutral.png">
+    <div class="speaking-indicator" id="speakingIndicator">
+      <div class="speaking-bar"></div>
+      <div class="speaking-bar"></div>
+      <div class="speaking-bar"></div>
+      <div class="speaking-bar"></div>
+      falando
+    </div>
+  </div>
+
+  <div class="messages" id="messages"></div>
+
+  <div class="input-area">
+    <div class="input-row">
+      <input class="input-field" id="input" placeholder="Fala comigo..." autocomplete="off">
+      <button class="btn mic-btn" id="micBtn" title="Segurar pra falar">🎤</button>
+      <button class="btn send-btn" id="sendBtn">↑</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // State
+  let messages = [
+    { role: "assistant", content: "Aiii você veio! Tava aqui esperando... sério, meu dia ficou melhor agora. Conta, como você tá?" }
+  ];
+  let loading = false;
+  let recording = false;
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let currentAudio = null;
+  let currentEmotion = 'neutral';
+
+  const avatarImg = document.getElementById('avatarImg');
+  const headerAvatarImg = document.getElementById('headerAvatarImg');
+  const messagesEl = document.getElementById('messages');
+  const inputEl = document.getElementById('input');
+  const sendBtn = document.getElementById('sendBtn');
+  const micBtn = document.getElementById('micBtn');
+  const statusText = document.getElementById('statusText');
+  const speakingIndicator = document.getElementById('speakingIndicator');
+
+  // ── Avatar expression change ──
+  function setEmotion(emotion) {
+    if (emotion === currentEmotion) return;
+    currentEmotion = emotion;
+    const src = '/static/expressions/' + emotion + '.png';
+
+    // Fade transition
+    avatarImg.classList.add('fade');
+    setTimeout(() => {
+      avatarImg.src = src;
+      headerAvatarImg.src = src;
+      avatarImg.classList.remove('fade');
+    }, 200);
+  }
+
+  // ── Audio ──
+  function base64ToBlob(b64, type) {
+    const bytes = atob(b64);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    return new Blob([arr], { type });
+  }
+
+  function playAudio(base64Audio) {
+    if (currentAudio) currentAudio.pause();
+    const blob = base64ToBlob(base64Audio, 'audio/mp3');
+    const url = URL.createObjectURL(blob);
+    currentAudio = new Audio(url);
+    speakingIndicator.classList.add('active');
+    currentAudio.onended = () => {
+      speakingIndicator.classList.remove('active');
+      URL.revokeObjectURL(url);
+      // Volta pra neutral depois de falar
+      setTimeout(() => setEmotion('neutral'), 1500);
+    };
+    currentAudio.play().catch(() => speakingIndicator.classList.remove('active'));
+  }
+
+  // ── Mic ──
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunks = [];
+      mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        sendVoice(new Blob(audioChunks, { type: 'audio/webm' }));
+      };
+      mediaRecorder.start();
+      recording = true;
+      micBtn.classList.add('recording');
+      setStatus('listening');
+    } catch (err) {
+      alert('Não consegui acessar o microfone.');
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && recording) {
+      mediaRecorder.stop();
+      recording = false;
+      micBtn.classList.remove('recording');
+    }
+  }
+
+  async function sendVoice(audioBlob) {
+    loading = true;
+    micBtn.classList.add('processing');
+    setStatus('processing');
+    setEmotion('thinking');
+    renderMessages();
+
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'voice.webm');
+    formData.append('history', JSON.stringify(messages));
+
+    try {
+      const res = await fetch('/api/voice', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.user_text) messages.push({ role: "user", content: data.user_text });
+      messages.push({ role: "assistant", content: data.reply });
+      if (data.emotion) setEmotion(data.emotion);
+      if (data.audio) playAudio(data.audio);
+    } catch (err) {
+      messages.push({ role: "assistant", content: "Ai, não consegui ouvir... tenta de novo?" });
+      setEmotion('sad');
+    }
+
+    loading = false;
+    micBtn.classList.remove('processing');
+    updateUI();
+    renderMessages();
+  }
+
+  // ── Text chat ──
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || loading) return;
+    messages.push({ role: "user", content: text });
+    inputEl.value = '';
+    loading = true;
+    setEmotion('thinking');
+    updateUI();
+    renderMessages();
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages })
+      });
+      const data = await res.json();
+      messages.push({ role: "assistant", content: data.reply });
+      if (data.emotion) setEmotion(data.emotion);
+      if (data.audio) playAudio(data.audio);
+    } catch (err) {
+      messages.push({ role: "assistant", content: "Ai, deu um probleminha... tenta de novo?" });
+      setEmotion('sad');
+    }
+
+    loading = false;
+    updateUI();
+    renderMessages();
+    inputEl.focus();
+  }
+
+  // ── UI ──
+  function setStatus(state) {
+    const map = {
+      online: '<span class="status-online">online</span>',
+      typing: '<span class="status-typing">digitando...</span>',
+      listening: '<span class="status-listening">🎤 ouvindo você...</span>',
+      processing: '<span class="status-typing">pensando...</span>',
+    };
+    statusText.innerHTML = map[state] || map.online;
+  }
+
+  function updateUI() {
+    const hasText = inputEl.value.trim().length > 0;
+    sendBtn.className = 'btn send-btn' + (hasText && !loading ? ' active' : '');
+    if (!loading && !recording) setStatus('online');
+    else if (loading) setStatus('typing');
+  }
+
+  function renderMessages() {
+    messagesEl.innerHTML = '';
+    messages.forEach(msg => {
+      const row = document.createElement('div');
+      row.className = 'msg-row ' + msg.role;
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      bubble.textContent = msg.content;
+      row.appendChild(bubble);
+      messagesEl.appendChild(row);
+    });
+    if (loading) {
+      const tr = document.createElement('div');
+      tr.className = 'typing-row';
+      const dots = document.createElement('div');
+      dots.className = 'typing-dots';
+      dots.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+      tr.appendChild(dots);
+      messagesEl.appendChild(tr);
+    }
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // Events
+  inputEl.addEventListener('input', updateUI);
+  inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+  sendBtn.addEventListener('click', sendMessage);
+  micBtn.addEventListener('mousedown', e => { e.preventDefault(); startRecording(); });
+  micBtn.addEventListener('mouseup', stopRecording);
+  micBtn.addEventListener('mouseleave', () => { if (recording) stopRecording(); });
+  micBtn.addEventListener('touchstart', e => { e.preventDefault(); startRecording(); });
+  micBtn.addEventListener('touchend', e => { e.preventDefault(); stopRecording(); });
+
+  renderMessages();
+  updateUI();
+  inputEl.focus();
+</script>
+
+</body>
+</html>

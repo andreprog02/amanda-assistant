@@ -13,67 +13,218 @@
       background: #f0ece4;
       user-select: none;
     }
-    #app { display: flex; flex-direction: column; height: 100vh; }
+    #app {
+      display: none;
+      flex-direction: column;
+      height: 100vh;
+      align-items: center;
+    }
+    #app.ready {
+      display: flex;
+      animation: fadeIn 0.5s ease-out;
+    }
 
+    /* Splash screen */
+    .splash {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      gap: 20px;
+    }
+    .splash.hidden {
+      opacity: 0;
+      transform: scale(1.05);
+      transition: all 0.6s ease-out;
+      pointer-events: none;
+    }
+    .splash-avatar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+      animation: pulse-splash 2s ease-in-out infinite;
+    }
+    .splash-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .splash-text {
+      font-size: 15px;
+      color: #8a7e72;
+      letter-spacing: 0.03em;
+    }
+    .splash-name {
+      font-size: 22px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-top: -8px;
+    }
+    .splash-dots {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .splash-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #b8a88a;
+    }
+    .splash-dot:nth-child(1) { animation: bounce 1.2s ease-in-out 0s infinite; }
+    .splash-dot:nth-child(2) { animation: bounce 1.2s ease-in-out 0.2s infinite; }
+    .splash-dot:nth-child(3) { animation: bounce 1.2s ease-in-out 0.4s infinite; }
+
+    @keyframes pulse-splash {
+      0%, 100% { box-shadow: 0 4px 24px rgba(0,0,0,0.1); }
+      50% { box-shadow: 0 4px 32px rgba(0,0,0,0.18); }
+    }
+
+    /* Header minimal */
     .header {
-      padding: 12px 16px;
+      width: 100%;
+      padding: 10px 16px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: center;
       background: #fff;
       border-bottom: 1px solid #e5e0d8;
       flex-shrink: 0;
       -webkit-app-region: drag;
     }
-    .header-avatar { width: 40px; height: 40px; flex-shrink: 0; }
-    .header-name { font-size: 15px; font-weight: 600; color: #1a1a1a; }
-    .header-status { font-size: 11px; margin-top: 1px; }
+    .header-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+      letter-spacing: 0.02em;
+    }
+    .header-status {
+      font-size: 11px;
+      margin-left: 8px;
+    }
     .status-online { color: #6bab72; }
     .status-typing { color: #e8915a; }
     .status-listening { color: #e85a5a; }
 
-    .messages {
+    /* Avatar — cenário + personagem em camadas */
+    .avatar-area {
       flex: 1;
-      overflow-y: auto;
-      padding: 14px 14px 8px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      align-items: center;
+      justify-content: flex-end;
+      position: relative;
+      width: 100%;
+      overflow: hidden;
     }
-    .messages::-webkit-scrollbar { width: 4px; }
-    .messages::-webkit-scrollbar-thumb { background: #ccc5ba; border-radius: 4px; }
+    .avatar-bg {
+      position: absolute;
+      inset: 0;
+      background-image: url('/static/backgrounds/home.png');
+      background-size: cover;
+      background-position: center;
+      z-index: 0;
+    }
+    .avatar-character {
+      position: relative;
+      z-index: 1;
+      max-height: 115vh;
+      max-width: 100%;
+      margin-bottom: -15px;
+      object-fit: contain;
+      transition: opacity 0.4s ease;
+      animation: breathing 4s ease-in-out infinite;
+      transform-origin: center bottom;
+    }
+    .avatar-character.fade { opacity: 0; }
+    .avatar-character.speaking {
+      animation: breathing-speaking 2.5s ease-in-out infinite;
+    }
+    .avatar-character.entering {
+      animation: character-enter 0.8s ease-out forwards;
+    }
 
-    .msg-row { display: flex; animation: fadeIn 0.25s ease-out; }
-    .msg-row.user { justify-content: flex-end; }
-    .msg-row.assistant { justify-content: flex-start; }
-    .msg-avatar { width: 28px; height: 28px; flex-shrink: 0; margin-right: 6px; margin-top: 4px; }
-    .msg-bubble {
-      max-width: 80%;
-      padding: 9px 13px;
+    @keyframes breathing {
+      0%, 100% { transform: scale(1) translateY(0); }
+      50% { transform: scale(1.006) translateY(-2px); }
+    }
+    @keyframes breathing-speaking {
+      0%, 100% { transform: scale(1) translateY(0) rotate(0deg); }
+      25% { transform: scale(1.008) translateY(-2px) rotate(0.3deg); }
+      75% { transform: scale(1.004) translateY(-1px) rotate(-0.3deg); }
+    }
+    @keyframes character-enter {
+      0% { opacity: 0; transform: scale(0.95) translateY(20px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* Speaking indicator */
+    .speaking-indicator {
+      display: none;
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      align-items: center;
+      gap: 3px;
+      padding: 5px 12px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 14px;
+      font-size: 11px;
+      color: #6bab72;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .speaking-indicator.active { display: flex; }
+    .speaking-bar { width: 3px; height: 10px; background: #6bab72; border-radius: 2px; }
+    .speaking-bar:nth-child(1) { animation: speakBar 0.8s ease-in-out 0s infinite; }
+    .speaking-bar:nth-child(2) { animation: speakBar 0.8s ease-in-out 0.15s infinite; }
+    .speaking-bar:nth-child(3) { animation: speakBar 0.8s ease-in-out 0.3s infinite; }
+    .speaking-bar:nth-child(4) { animation: speakBar 0.8s ease-in-out 0.45s infinite; }
+
+    /* Last message bubble */
+    .last-message {
+      position: absolute;
+      bottom: 12px;
+      left: 16px;
+      right: 16px;
+      text-align: center;
+    }
+    .last-message-bubble {
+      display: inline-block;
+      max-width: 90%;
+      padding: 10px 16px;
+      background: rgba(255,255,255,0.92);
+      border-radius: 16px;
       font-size: 13.5px;
       line-height: 1.5;
       color: #1a1a1a;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-      user-select: text;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      backdrop-filter: blur(8px);
+      animation: fadeIn 0.3s ease-out;
     }
-    .msg-row.user .msg-bubble { background: #d9f0d4; border-radius: 16px 16px 4px 16px; }
-    .msg-row.assistant .msg-bubble { background: #fff; border-radius: 16px 16px 16px 4px; }
+    .last-message-bubble.user-msg {
+      background: rgba(217,240,212,0.92);
+    }
 
-    /* Voice indicator on messages */
-    .msg-voice-icon { font-size: 10px; opacity: 0.5; margin-left: 4px; }
-
-    .typing-row { display: flex; align-items: flex-start; animation: fadeIn 0.25s ease-out; }
-    .typing-dots {
-      display: flex; gap: 5px; padding: 12px 14px;
-      background: #fff; border-radius: 16px 16px 16px 4px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    /* Typing dots inside bubble */
+    .typing-bubble {
+      display: inline-flex;
+      gap: 5px;
+      padding: 12px 20px;
+      background: rgba(255,255,255,0.92);
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     }
     .typing-dot { width: 6px; height: 6px; border-radius: 50%; background: #b0b8c1; }
     .typing-dot:nth-child(1) { animation: bounce 1.2s ease-in-out 0s infinite; }
     .typing-dot:nth-child(2) { animation: bounce 1.2s ease-in-out 0.15s infinite; }
     .typing-dot:nth-child(3) { animation: bounce 1.2s ease-in-out 0.3s infinite; }
 
+    /* Input */
     .input-area {
+      width: 100%;
       padding: 10px 14px 14px;
       background: #fff;
       border-top: 1px solid #e5e0d8;
@@ -88,6 +239,7 @@
     }
     .input-field:focus { border-color: #b8a88a; }
     .input-field::placeholder { color: #b0a898; }
+    .photo-input { display: none; }
 
     .btn {
       width: 36px; height: 36px; border-radius: 50%; border: none;
@@ -97,33 +249,12 @@
     }
     .send-btn { background: #ddd6cc; cursor: default; }
     .send-btn.active { background: #6bab72; cursor: pointer; box-shadow: 0 2px 8px rgba(107,171,114,0.25); }
-
-    .mic-btn { background: #6bab72; cursor: pointer; }
+    .mic-btn { background: #6bab72; }
+    .photo-btn { background: #b8a88a; }
+    .photo-btn:hover { background: #a89878; }
     .mic-btn:hover { background: #5a9a62; }
-    .mic-btn.recording {
-      background: #e85a5a;
-      animation: pulse-mic 1.5s ease-in-out infinite;
-    }
+    .mic-btn.recording { background: #e85a5a; animation: pulse-mic 1.5s ease-in-out infinite; }
     .mic-btn.processing { background: #e8915a; cursor: wait; }
-
-    /* Audio playing indicator */
-    .speaking-indicator {
-      display: none;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      font-size: 10px;
-      color: #6bab72;
-      margin-left: auto;
-    }
-    .speaking-indicator.active { display: flex; }
-    .speaking-bar {
-      width: 3px; height: 12px; background: #6bab72; border-radius: 2px;
-    }
-    .speaking-bar:nth-child(1) { animation: speakBar 0.8s ease-in-out 0s infinite; }
-    .speaking-bar:nth-child(2) { animation: speakBar 0.8s ease-in-out 0.15s infinite; }
-    .speaking-bar:nth-child(3) { animation: speakBar 0.8s ease-in-out 0.3s infinite; }
-    .speaking-bar:nth-child(4) { animation: speakBar 0.8s ease-in-out 0.45s infinite; }
 
     @keyframes bounce {
       0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
@@ -145,13 +276,30 @@
 </head>
 <body>
 
+<!-- Splash Screen -->
+<div class="splash" id="splash">
+  <div class="splash-avatar">
+    <img src="/static/profile.png">
+  </div>
+  <div class="splash-name">Amanda</div>
+  <div class="splash-text">conectando</div>
+  <div class="splash-dots">
+    <div class="splash-dot"></div>
+    <div class="splash-dot"></div>
+    <div class="splash-dot"></div>
+  </div>
+</div>
+
 <div id="app">
   <div class="header">
-    <div class="header-avatar" id="headerAvatar"></div>
-    <div>
-      <div class="header-name">Amanda</div>
-      <div class="header-status" id="statusText"><span class="status-online">online</span></div>
-    </div>
+    <span class="header-name">Amanda</span>
+    <span class="header-status" id="statusText"><span class="status-online">● online</span></span>
+  </div>
+
+  <div class="avatar-area">
+    <div class="avatar-bg" id="avatarBg"></div>
+    <img class="avatar-character" id="avatarImg" src="/static/characters/home_neutral.png" style="opacity:0;">
+
     <div class="speaking-indicator" id="speakingIndicator">
       <div class="speaking-bar"></div>
       <div class="speaking-bar"></div>
@@ -159,13 +307,17 @@
       <div class="speaking-bar"></div>
       falando
     </div>
-  </div>
 
-  <div class="messages" id="messages"></div>
+    <div class="last-message" id="lastMessage">
+      <div class="last-message-bubble">Aiii você veio! Tava aqui esperando... sério, meu dia ficou melhor agora.</div>
+    </div>
+  </div>
 
   <div class="input-area">
     <div class="input-row">
       <input class="input-field" id="input" placeholder="Fala comigo..." autocomplete="off">
+      <input type="file" class="photo-input" id="photoInput" accept="image/*">
+      <button class="btn photo-btn" id="photoBtn" title="Enviar foto">📷</button>
       <button class="btn mic-btn" id="micBtn" title="Segurar pra falar">🎤</button>
       <button class="btn send-btn" id="sendBtn">↑</button>
     </div>
@@ -173,95 +325,77 @@
 </div>
 
 <script>
-  const AVATAR_SVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="skinGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#fde0c8"/><stop offset="100%" stop-color="#f5c9a8"/></linearGradient>
-      <linearGradient id="hairGrad" x1="0%" y1="0%" x2="80%" y2="100%"><stop offset="0%" stop-color="#e8c36a"/><stop offset="40%" stop-color="#d4a34a"/><stop offset="100%" stop-color="#c48d3a"/></linearGradient>
-      <linearGradient id="hairHL" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#f0d888" stop-opacity="0.6"/><stop offset="100%" stop-color="#e8c36a" stop-opacity="0"/></linearGradient>
-      <linearGradient id="lipGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#e87a7a"/><stop offset="100%" stop-color="#d45c5c"/></linearGradient>
-      <linearGradient id="shirtGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#f5f0eb"/><stop offset="100%" stop-color="#e8e0d6"/></linearGradient>
-      <radialGradient id="cheekL"><stop offset="0%" stop-color="#f4a0a0" stop-opacity="0.35"/><stop offset="100%" stop-color="#f4a0a0" stop-opacity="0"/></radialGradient>
-      <radialGradient id="cheekR"><stop offset="0%" stop-color="#f4a0a0" stop-opacity="0.35"/><stop offset="100%" stop-color="#f4a0a0" stop-opacity="0"/></radialGradient>
-      <clipPath id="circleClip"><circle cx="100" cy="100" r="96"/></clipPath>
-    </defs>
-    <circle cx="100" cy="100" r="98" fill="#f8f4f0"/><circle cx="100" cy="100" r="96" fill="#faf6f2"/>
-    <g clip-path="url(#circleClip)">
-      <path d="M48 75 Q42 100 44 140 Q46 170 52 200 L148 200 Q154 170 156 140 Q158 100 152 75 Z" fill="url(#hairGrad)"/>
-      <path d="M44 90 Q38 120 40 155 Q42 180 48 200 L52 200 Q46 170 44 140 Q42 110 48 85 Z" fill="url(#hairHL)"/>
-      <path d="M152 85 Q158 110 156 140 Q154 170 148 200 L152 200 Q158 180 160 155 Q162 120 156 90 Z" fill="url(#hairHL)"/>
-      <path d="M82 148 Q85 162 84 175 L116 175 Q115 162 118 148 Z" fill="url(#skinGrad)"/>
-      <path d="M42 175 Q60 162 84 168 L116 168 Q140 162 158 175 Q165 185 165 200 L35 200 Q35 185 42 175 Z" fill="url(#shirtGrad)"/>
-      <ellipse cx="100" cy="108" rx="38" ry="44" fill="url(#skinGrad)"/>
-      <path d="M68 115 Q72 145 100 152 Q128 145 132 115" fill="url(#skinGrad)"/>
-      <ellipse cx="74" cy="120" rx="10" ry="7" fill="url(#cheekL)"/>
-      <ellipse cx="126" cy="120" rx="10" ry="7" fill="url(#cheekR)"/>
-      <ellipse cx="82" cy="105" rx="9" ry="7" fill="white"/><ellipse cx="83" cy="105" rx="6" ry="6" fill="#4a8bbf"/><ellipse cx="83" cy="105" rx="3.5" ry="3.5" fill="#1a3a5c"/>
-      <circle cx="85" cy="103" r="1.8" fill="white" opacity="0.9"/>
-      <path d="M73 100 Q78 96 83 96 Q88 96 92 100" stroke="#8a6a4a" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-      <path d="M73 100 Q71 97 70 95" stroke="#5a3a2a" stroke-width="1" fill="none" stroke-linecap="round"/>
-      <path d="M76 98 Q74 95 74 93" stroke="#5a3a2a" stroke-width="0.8" fill="none" stroke-linecap="round"/>
-      <ellipse cx="118" cy="105" rx="9" ry="7" fill="white"/><ellipse cx="117" cy="105" rx="6" ry="6" fill="#4a8bbf"/><ellipse cx="117" cy="105" rx="3.5" ry="3.5" fill="#1a3a5c"/>
-      <circle cx="119" cy="103" r="1.8" fill="white" opacity="0.9"/>
-      <path d="M108 100 Q112 96 117 96 Q122 96 127 100" stroke="#8a6a4a" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-      <path d="M127 100 Q129 97 130 95" stroke="#5a3a2a" stroke-width="1" fill="none" stroke-linecap="round"/>
-      <path d="M124 98 Q126 95 126 93" stroke="#5a3a2a" stroke-width="0.8" fill="none" stroke-linecap="round"/>
-      <path d="M71 93 Q77 88 85 90 Q88 91 91 92" stroke="#b8884a" stroke-width="2" fill="none" stroke-linecap="round"/>
-      <path d="M109 92 Q112 91 115 90 Q123 88 129 93" stroke="#b8884a" stroke-width="2" fill="none" stroke-linecap="round"/>
-      <path d="M95 122 Q100 126 105 122" stroke="#deb08a" stroke-width="0.8" fill="none" stroke-linecap="round" opacity="0.6"/>
-      <path d="M86 133 Q92 129 100 131 Q108 129 114 133" fill="url(#lipGrad)"/>
-      <path d="M86 133 Q92 141 100 143 Q108 141 114 133" fill="url(#lipGrad)"/>
-      <ellipse cx="100" cy="137" rx="6" ry="2.5" fill="white" opacity="0.15"/>
-      <path d="M52 68 Q55 50 70 42 Q85 36 100 38 Q115 36 130 42 Q145 50 148 68 Q145 58 135 50 Q122 42 100 40 Q78 42 65 50 Q55 58 52 68 Z" fill="url(#hairGrad)"/>
-      <path d="M52 68 Q50 55 55 45 Q62 36 75 34 Q65 40 58 50 Q53 60 54 72 Z" fill="url(#hairGrad)"/>
-      <path d="M52 68 Q48 58 52 48 Q54 42 60 38 Q52 45 50 55 Q48 62 52 72 Z" fill="url(#hairHL)"/>
-      <path d="M148 68 Q150 55 145 45 Q138 36 125 34 Q135 40 142 50 Q147 60 146 72 Z" fill="url(#hairGrad)"/>
-      <path d="M44 140 Q46 155 50 175 Q52 185 48 200 L42 200 Q44 185 42 170 Q40 155 44 140 Z" fill="url(#hairGrad)" opacity="0.9"/>
-      <path d="M156 140 Q154 155 150 175 Q148 185 152 200 L158 200 Q156 185 158 170 Q160 155 156 140 Z" fill="url(#hairGrad)" opacity="0.9"/>
-    </g>
-    <circle cx="100" cy="100" r="96" fill="none" stroke="#e8e0d8" stroke-width="1.5"/>
-  </svg>`;
-
-  function createAvatar(size) {
-    const div = document.createElement('div');
-    div.style.width = size + 'px';
-    div.style.height = size + 'px';
-    div.innerHTML = AVATAR_SVG;
-    div.querySelector('svg').setAttribute('width', size);
-    div.querySelector('svg').setAttribute('height', size);
-    return div;
-  }
-
-  // State
   let messages = [
-    { role: "assistant", content: "Aiii você veio! ✨ Tava aqui esperando... sério, meu dia ficou melhor agora. Conta, como você tá?" }
+    { role: "assistant", content: "Aiii você veio! Tava aqui esperando... sério, meu dia ficou melhor agora." }
   ];
   let loading = false;
   let recording = false;
   let mediaRecorder = null;
   let audioChunks = [];
   let currentAudio = null;
+  let currentEmotion = 'neutral';
 
-  const messagesEl = document.getElementById('messages');
+  const avatarImg = document.getElementById('avatarImg');
+  const avatarBg = document.getElementById('avatarBg');
+  const lastMessageEl = document.getElementById('lastMessage');
   const inputEl = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
   const micBtn = document.getElementById('micBtn');
+  const photoBtn = document.getElementById('photoBtn');
+  const photoInput = document.getElementById('photoInput');
   const statusText = document.getElementById('statusText');
   const speakingIndicator = document.getElementById('speakingIndicator');
 
-  document.getElementById('headerAvatar').appendChild(createAvatar(40));
+  function setExpression(imagePath) {
+    // Tenta versão recortada (characters/) primeiro
+    const emotion = imagePath.split('/').pop().replace('.png', '');
+    const charPath = '/static/characters/home_' + emotion + '.png';
 
-  // ── Audio playback ──
-  function playAudio(base64Audio) {
-    if (currentAudio) { currentAudio.pause(); }
-    const audioBlob = base64ToBlob(base64Audio, 'audio/mp3');
-    const url = URL.createObjectURL(audioBlob);
-    currentAudio = new Audio(url);
-    speakingIndicator.classList.add('active');
-    currentAudio.onended = () => {
-      speakingIndicator.classList.remove('active');
-      URL.revokeObjectURL(url);
-    };
-    currentAudio.play().catch(() => speakingIndicator.classList.remove('active'));
+    avatarImg.classList.add('fade');
+    setTimeout(() => {
+      const testImg = new Image();
+      testImg.onload = () => {
+        avatarImg.src = charPath;
+        avatarImg.classList.remove('fade');
+      };
+      testImg.onerror = () => {
+        avatarImg.src = imagePath;
+        avatarImg.classList.remove('fade');
+      };
+      testImg.src = charPath;
+    }, 300);
+  }
+
+  function setEmotion(emotion) {
+    const charPath = '/static/characters/home_' + emotion + '.png';
+    avatarImg.classList.add('fade');
+    setTimeout(() => {
+      const testImg = new Image();
+      testImg.onload = () => {
+        avatarImg.src = charPath;
+        avatarImg.classList.remove('fade');
+      };
+      testImg.onerror = () => {
+        avatarImg.src = '/static/expressions/' + emotion + '.png';
+        avatarImg.classList.remove('fade');
+      };
+      testImg.src = charPath;
+    }, 300);
+  }
+
+  function showLastMessage(text, isUser) {
+    if (loading && !text) {
+      lastMessageEl.innerHTML = '<div class="typing-bubble"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+    } else {
+      const cls = isUser ? 'last-message-bubble user-msg' : 'last-message-bubble';
+      lastMessageEl.innerHTML = '<div class="' + cls + '">' + escapeHtml(text) + '</div>';
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
   }
 
   function base64ToBlob(b64, type) {
@@ -271,7 +405,29 @@
     return new Blob([arr], { type });
   }
 
-  // ── Mic recording ──
+  function playAudio(base64Audio) {
+    if (currentAudio) currentAudio.pause();
+    const blob = base64ToBlob(base64Audio, 'audio/mp3');
+    const url = URL.createObjectURL(blob);
+    currentAudio = new Audio(url);
+    speakingIndicator.classList.add('active');
+    avatarImg.classList.add('speaking');
+    currentAudio.onended = () => {
+      speakingIndicator.classList.remove('active');
+      avatarImg.classList.remove('speaking');
+      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        fetch('/api/environment').then(r => r.json()).then(d => {
+          if (d.image) setExpression(d.image);
+        }).catch(() => setEmotion('neutral'));
+      }, 2000);
+    };
+    currentAudio.play().catch(() => {
+      speakingIndicator.classList.remove('active');
+      avatarImg.classList.remove('speaking');
+    });
+  }
+
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -280,16 +436,14 @@
       mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
       mediaRecorder.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(audioChunks, { type: 'audio/webm' });
-        sendVoice(blob);
+        sendVoice(new Blob(audioChunks, { type: 'audio/webm' }));
       };
       mediaRecorder.start();
       recording = true;
       micBtn.classList.add('recording');
       setStatus('listening');
     } catch (err) {
-      console.error('Mic error:', err);
-      alert('Não consegui acessar o microfone. Verifica as permissões.');
+      alert('Não consegui acessar o microfone.');
     }
   }
 
@@ -305,7 +459,8 @@
     loading = true;
     micBtn.classList.add('processing');
     setStatus('processing');
-    renderMessages();
+    setEmotion('thinking');
+    showLastMessage(null, false);
 
     const formData = new FormData();
     formData.append('audio', audioBlob, 'voice.webm');
@@ -314,32 +469,33 @@
     try {
       const res = await fetch('/api/voice', { method: 'POST', body: formData });
       const data = await res.json();
-
-      if (data.user_text) {
-        messages.push({ role: "user", content: data.user_text });
-      }
+      if (data.user_text) messages.push({ role: "user", content: data.user_text });
       messages.push({ role: "assistant", content: data.reply });
-
+      if (data.image) setExpression(data.image);
+      else if (data.emotion) setEmotion(data.emotion);
+      showLastMessage(data.reply, false);
       if (data.audio) playAudio(data.audio);
     } catch (err) {
-      messages.push({ role: "assistant", content: "Ai, não consegui ouvir... tenta de novo? 🥺" });
+      const msg = "Ai, não consegui ouvir... tenta de novo?";
+      messages.push({ role: "assistant", content: msg });
+      showLastMessage(msg, false);
+      setEmotion('sad');
     }
 
     loading = false;
     micBtn.classList.remove('processing');
     updateUI();
-    renderMessages();
   }
 
-  // ── Text chat (agora também com áudio) ──
   async function sendMessage() {
     const text = inputEl.value.trim();
     if (!text || loading) return;
     messages.push({ role: "user", content: text });
     inputEl.value = '';
     loading = true;
+    setEmotion('thinking');
+    showLastMessage(null, false);
     updateUI();
-    renderMessages();
 
     try {
       const res = await fetch('/api/chat', {
@@ -349,25 +505,28 @@
       });
       const data = await res.json();
       messages.push({ role: "assistant", content: data.reply });
-
+      if (data.image) setExpression(data.image);
+      else if (data.emotion) setEmotion(data.emotion);
+      showLastMessage(data.reply, false);
       if (data.audio) playAudio(data.audio);
     } catch (err) {
-      messages.push({ role: "assistant", content: "Ai, deu um probleminha... tenta de novo? 🥺" });
+      const msg = "Ai, deu um probleminha... tenta de novo?";
+      messages.push({ role: "assistant", content: msg });
+      showLastMessage(msg, false);
+      setEmotion('sad');
     }
 
     loading = false;
     updateUI();
-    renderMessages();
     inputEl.focus();
   }
 
-  // ── UI helpers ──
   function setStatus(state) {
     const map = {
-      online: '<span class="status-online">online</span>',
-      typing: '<span class="status-typing">digitando...</span>',
-      listening: '<span class="status-listening">🎤 ouvindo você...</span>',
-      processing: '<span class="status-typing">pensando...</span>',
+      online: '<span class="status-online">● online</span>',
+      typing: '<span class="status-typing">● pensando...</span>',
+      listening: '<span class="status-listening">● ouvindo...</span>',
+      processing: '<span class="status-typing">● processando...</span>',
     };
     statusText.innerHTML = map[state] || map.online;
   }
@@ -379,63 +538,105 @@
     else if (loading) setStatus('typing');
   }
 
-  function renderMessages() {
-    messagesEl.innerHTML = '';
-    messages.forEach(msg => {
-      const row = document.createElement('div');
-      row.className = 'msg-row ' + msg.role;
-      if (msg.role === 'assistant') {
-        const av = document.createElement('div');
-        av.className = 'msg-avatar';
-        av.appendChild(createAvatar(28));
-        row.appendChild(av);
-      }
-      const bubble = document.createElement('div');
-      bubble.className = 'msg-bubble';
-      bubble.textContent = msg.content;
-      row.appendChild(bubble);
-      messagesEl.appendChild(row);
-    });
-
-    if (loading) {
-      const tr = document.createElement('div');
-      tr.className = 'typing-row';
-      const av = document.createElement('div');
-      av.className = 'msg-avatar';
-      av.appendChild(createAvatar(28));
-      tr.appendChild(av);
-      const dots = document.createElement('div');
-      dots.className = 'typing-dots';
-      dots.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
-      tr.appendChild(dots);
-      messagesEl.appendChild(tr);
-    }
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
-
-  // ── Events ──
   inputEl.addEventListener('input', updateUI);
   inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
   sendBtn.addEventListener('click', sendMessage);
-
-  // Mic: segura pra gravar, solta pra enviar
   micBtn.addEventListener('mousedown', e => { e.preventDefault(); startRecording(); });
   micBtn.addEventListener('mouseup', stopRecording);
   micBtn.addEventListener('mouseleave', () => { if (recording) stopRecording(); });
-  // Touch support
   micBtn.addEventListener('touchstart', e => { e.preventDefault(); startRecording(); });
   micBtn.addEventListener('touchend', e => { e.preventDefault(); stopRecording(); });
 
-  renderMessages();
+  // Foto
+  photoBtn.addEventListener('click', () => photoInput.click());
+  photoInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file || loading) return;
+    photoInput.value = '';
+    await sendPhoto(file);
+  });
+
+  async function sendPhoto(file) {
+    loading = true;
+    const caption = inputEl.value.trim() || "";
+    inputEl.value = '';
+    setEmotion('thinking');
+    showLastMessage(null, false);
+    setStatus('processing');
+    updateUI();
+
+    messages.push({ role: "user", content: caption ? `[foto] ${caption}` : "[enviou uma foto]" });
+
+    const formData = new FormData();
+    formData.append('photo', file);
+    formData.append('message', caption);
+    formData.append('history', JSON.stringify(messages.slice(0, -1)));
+
+    try {
+      const res = await fetch('/api/image', { method: 'POST', body: formData });
+      const data = await res.json();
+      messages.push({ role: "assistant", content: data.reply });
+      if (data.image) setExpression(data.image);
+      else if (data.emotion) setEmotion(data.emotion);
+      showLastMessage(data.reply, false);
+      if (data.audio) playAudio(data.audio);
+    } catch (err) {
+      const msg = "Ai, não consegui ver a foto... tenta de novo?";
+      messages.push({ role: "assistant", content: msg });
+      showLastMessage(msg, false);
+      setEmotion('sad');
+    }
+
+    loading = false;
+    updateUI();
+    inputEl.focus();
+  }
+
   updateUI();
   inputEl.focus();
 
-  // Play greeting audio on load
-  fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: [{ role: "user", content: "oi" }] })
-  }).catch(() => {});
+  // Busca saudação dinâmica e faz transição splash → app
+  async function loadGreeting() {
+    const splash = document.getElementById('splash');
+    const app = document.getElementById('app');
+
+    try {
+      const res = await fetch('/api/greeting');
+      const data = await res.json();
+      messages[0] = { role: "assistant", content: data.reply };
+      showLastMessage(data.reply, false);
+
+      // Esconde splash, mostra app com Amanda entrando na cena
+      splash.classList.add('hidden');
+      setTimeout(() => {
+        splash.style.display = 'none';
+        app.classList.add('ready');
+
+        // Amanda "entra" na cena
+        avatarImg.style.opacity = '';
+        avatarImg.classList.add('entering');
+        setTimeout(() => avatarImg.classList.remove('entering'), 800);
+
+        if (data.image) setExpression(data.image);
+        else if (data.emotion) setEmotion(data.emotion);
+        if (data.audio) playAudio(data.audio);
+        inputEl.focus();
+      }, 500);
+
+    } catch (err) {
+      // Mesmo com erro, mostra o app
+      splash.classList.add('hidden');
+      setTimeout(() => {
+        splash.style.display = 'none';
+        app.classList.add('ready');
+        avatarImg.style.opacity = '';
+        avatarImg.classList.add('entering');
+        setTimeout(() => avatarImg.classList.remove('entering'), 800);
+        inputEl.focus();
+      }, 500);
+    }
+  }
+  loadGreeting();
 </script>
 
 </body>
