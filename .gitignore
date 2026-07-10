@@ -1,8 +1,6 @@
-node_modules/
-dist/
+__pycache__/
+*.pyc
 .env
-.env.local
-.DS_Store
-
-# Personalidade da Amanda — NUNCA subir pro GitHub público
-src/prompt.js
+prompt.py
+venv/
+.venv/

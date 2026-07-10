@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Amanda</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #f0ece4;
+      user-select: none;
+    }
+    #app { display: flex; flex-direction: column; height: 100vh; }
+
+    .header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fff;
+      border-bottom: 1px solid #e5e0d8;
+      flex-shrink: 0;
+      -webkit-app-region: drag;
+    }
+    .header-avatar { width: 40px; height: 40px; flex-shrink: 0; }
+    .header-name { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+    .header-status { font-size: 11px; margin-top: 1px; }
+    .status-online { color: #6bab72; }
+    .status-typing { color: #e8915a; }
+    .status-listening { color: #e85a5a; }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 14px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .messages::-webkit-scrollbar { width: 4px; }
+    .messages::-webkit-scrollbar-thumb { background: #ccc5ba; border-radius: 4px; }
+
+    .msg-row { display: flex; animation: fadeIn 0.25s ease-out; }
+    .msg-row.user { justify-content: flex-end; }
+    .msg-row.assistant { justify-content: flex-start; }
+    .msg-avatar { width: 28px; height: 28px; flex-shrink: 0; margin-right: 6px; margin-top: 4px; }
+    .msg-bubble {
+      max-width: 80%;
+      padding: 9px 13px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #1a1a1a;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+      user-select: text;
+    }
+    .msg-row.user .msg-bubble { background: #d9f0d4; border-radius: 16px 16px 4px 16px; }
+    .msg-row.assistant .msg-bubble { background: #fff; border-radius: 16px 16px 16px 4px; }
+
+    /* Voice indicator on messages */
+    .msg-voice-icon { font-size: 10px; opacity: 0.5; margin-left: 4px; }
+
+    .typing-row { display: flex; align-items: flex-start; animation: fadeIn 0.25s ease-out; }
+    .typing-dots {
+      display: flex; gap: 5px; padding: 12px 14px;
+      background: #fff; border-radius: 16px 16px 16px 4px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+    .typing-dot { width: 6px; height: 6px; border-radius: 50%; background: #b0b8c1; }
+    .typing-dot:nth-child(1) { animation: bounce 1.2s ease-in-out 0s infinite; }
+    .typing-dot:nth-child(2) { animation: bounce 1.2s ease-in-out 0.15s infinite; }
+    .typing-dot:nth-child(3) { animation: bounce 1.2s ease-in-out 0.3s infinite; }
+
+    .input-area {
+      padding: 10px 14px 14px;
+      background: #fff;
+      border-top: 1px solid #e5e0d8;
+      flex-shrink: 0;
+    }
+    .input-row { display: flex; gap: 8px; align-items: center; }
+    .input-field {
+      flex: 1; padding: 10px 14px; border-radius: 20px;
+      border: 1.5px solid #ddd6cc; background: #faf8f4;
+      color: #1a1a1a; font-size: 13.5px; font-family: inherit;
+      outline: none; transition: border-color 0.2s;
+    }
+    .input-field:focus { border-color: #b8a88a; }
+    .input-field::placeholder { color: #b0a898; }
+
+    .btn {
+      width: 36px; height: 36px; border-radius: 50%; border: none;
+      color: #fff; font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; flex-shrink: 0;
+    }
+    .send-btn { background: #ddd6cc; cursor: default; }
+    .send-btn.active { background: #6bab72; cursor: pointer; box-shadow: 0 2px 8px rgba(107,171,114,0.25); }
+
+    .mic-btn { background: #6bab72; cursor: pointer; }
+    .mic-btn:hover { background: #5a9a62; }
+    .mic-btn.recording {
+      background: #e85a5a;
+      animation: pulse-mic 1.5s ease-in-out infinite;
+    }
+    .mic-btn.processing { background: #e8915a; cursor: wait; }
+
+    /* Audio playing indicator */
+    .speaking-indicator {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      font-size: 10px;
+      color: #6bab72;
+      margin-left: auto;
+    }
+    .speaking-indicator.active { display: flex; }
+    .speaking-bar {
+      width: 3px; height: 12px; background: #6bab72; border-radius: 2px;
+    }
+    .speaking-bar:nth-child(1) { animation: speakBar 0.8s ease-in-out 0s infinite; }
+    .speaking-bar:nth-child(2) { animation: speakBar 0.8s ease-in-out 0.15s infinite; }
+    .speaking-bar:nth-child(3) { animation: speakBar 0.8s ease-in-out 0.3s infinite; }
+    .speaking-bar:nth-child(4) { animation: speakBar 0.8s ease-in-out 0.45s infinite; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-6px); opacity: 1; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-mic {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(232,90,90,0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(232,90,90,0); }
+    }
+    @keyframes speakBar {
+      0%, 100% { height: 4px; }
+      50% { height: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <div class="header">
+    <div class="header-avatar" id="headerAvatar"></div>
+    <div>
+      <div class="header-name">Amanda</div>
+      <div class="header-status" id="statusText"><span class="status-online">online</span></div>
+    </div>
+    <div class="speaking-indicator" id="speakingIndicator">
+      <div class="speaking-bar"></div>
+      <div class="speaking-bar"></div>
+      <div class="speaking-bar"></div>
+      <div class="speaking-bar"></div>
+      falando
+    </div>
+  </div>
+
+  <div class="messages" id="messages"></div>
+
+  <div class="input-area">
+    <div class="input-row">
+      <input class="input-field" id="input" placeholder="Fala comigo..." autocomplete="off">
+      <button class="btn mic-btn" id="micBtn" title="Segurar pra falar">🎤</button>
+      <button class="btn send-btn" id="sendBtn">↑</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const AVATAR_SVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="skinGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#fde0c8"/><stop offset="100%" stop-color="#f5c9a8"/></linearGradient>
+      <linearGradient id="hairGrad" x1="0%" y1="0%" x2="80%" y2="100%"><stop offset="0%" stop-color="#e8c36a"/><stop offset="40%" stop-color="#d4a34a"/><stop offset="100%" stop-color="#c48d3a"/></linearGradient>
+      <linearGradient id="hairHL" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#f0d888" stop-opacity="0.6"/><stop offset="100%" stop-color="#e8c36a" stop-opacity="0"/></linearGradient>
+      <linearGradient id="lipGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#e87a7a"/><stop offset="100%" stop-color="#d45c5c"/></linearGradient>
+      <linearGradient id="shirtGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#f5f0eb"/><stop offset="100%" stop-color="#e8e0d6"/></linearGradient>
+      <radialGradient id="cheekL"><stop offset="0%" stop-color="#f4a0a0" stop-opacity="0.35"/><stop offset="100%" stop-color="#f4a0a0" stop-opacity="0"/></radialGradient>
+      <radialGradient id="cheekR"><stop offset="0%" stop-color="#f4a0a0" stop-opacity="0.35"/><stop offset="100%" stop-color="#f4a0a0" stop-opacity="0"/></radialGradient>
+      <clipPath id="circleClip"><circle cx="100" cy="100" r="96"/></clipPath>
+    </defs>
+    <circle cx="100" cy="100" r="98" fill="#f8f4f0"/><circle cx="100" cy="100" r="96" fill="#faf6f2"/>
+    <g clip-path="url(#circleClip)">
+      <path d="M48 75 Q42 100 44 140 Q46 170 52 200 L148 200 Q154 170 156 140 Q158 100 152 75 Z" fill="url(#hairGrad)"/>
+      <path d="M44 90 Q38 120 40 155 Q42 180 48 200 L52 200 Q46 170 44 140 Q42 110 48 85 Z" fill="url(#hairHL)"/>
+      <path d="M152 85 Q158 110 156 140 Q154 170 148 200 L152 200 Q158 180 160 155 Q162 120 156 90 Z" fill="url(#hairHL)"/>
+      <path d="M82 148 Q85 162 84 175 L116 175 Q115 162 118 148 Z" fill="url(#skinGrad)"/>
+      <path d="M42 175 Q60 162 84 168 L116 168 Q140 162 158 175 Q165 185 165 200 L35 200 Q35 185 42 175 Z" fill="url(#shirtGrad)"/>
+      <ellipse cx="100" cy="108" rx="38" ry="44" fill="url(#skinGrad)"/>
+      <path d="M68 115 Q72 145 100 152 Q128 145 132 115" fill="url(#skinGrad)"/>
+      <ellipse cx="74" cy="120" rx="10" ry="7" fill="url(#cheekL)"/>
+      <ellipse cx="126" cy="120" rx="10" ry="7" fill="url(#cheekR)"/>
+      <ellipse cx="82" cy="105" rx="9" ry="7" fill="white"/><ellipse cx="83" cy="105" rx="6" ry="6" fill="#4a8bbf"/><ellipse cx="83" cy="105" rx="3.5" ry="3.5" fill="#1a3a5c"/>
+      <circle cx="85" cy="103" r="1.8" fill="white" opacity="0.9"/>
+      <path d="M73 100 Q78 96 83 96 Q88 96 92 100" stroke="#8a6a4a" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+      <path d="M73 100 Q71 97 70 95" stroke="#5a3a2a" stroke-width="1" fill="none" stroke-linecap="round"/>
+      <path d="M76 98 Q74 95 74 93" stroke="#5a3a2a" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+      <ellipse cx="118" cy="105" rx="9" ry="7" fill="white"/><ellipse cx="117" cy="105" rx="6" ry="6" fill="#4a8bbf"/><ellipse cx="117" cy="105" rx="3.5" ry="3.5" fill="#1a3a5c"/>
+      <circle cx="119" cy="103" r="1.8" fill="white" opacity="0.9"/>
+      <path d="M108 100 Q112 96 117 96 Q122 96 127 100" stroke="#8a6a4a" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+      <path d="M127 100 Q129 97 130 95" stroke="#5a3a2a" stroke-width="1" fill="none" stroke-linecap="round"/>
+      <path d="M124 98 Q126 95 126 93" stroke="#5a3a2a" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+      <path d="M71 93 Q77 88 85 90 Q88 91 91 92" stroke="#b8884a" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M109 92 Q112 91 115 90 Q123 88 129 93" stroke="#b8884a" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M95 122 Q100 126 105 122" stroke="#deb08a" stroke-width="0.8" fill="none" stroke-linecap="round" opacity="0.6"/>
+      <path d="M86 133 Q92 129 100 131 Q108 129 114 133" fill="url(#lipGrad)"/>
+      <path d="M86 133 Q92 141 100 143 Q108 141 114 133" fill="url(#lipGrad)"/>
+      <ellipse cx="100" cy="137" rx="6" ry="2.5" fill="white" opacity="0.15"/>
+      <path d="M52 68 Q55 50 70 42 Q85 36 100 38 Q115 36 130 42 Q145 50 148 68 Q145 58 135 50 Q122 42 100 40 Q78 42 65 50 Q55 58 52 68 Z" fill="url(#hairGrad)"/>
+      <path d="M52 68 Q50 55 55 45 Q62 36 75 34 Q65 40 58 50 Q53 60 54 72 Z" fill="url(#hairGrad)"/>
+      <path d="M52 68 Q48 58 52 48 Q54 42 60 38 Q52 45 50 55 Q48 62 52 72 Z" fill="url(#hairHL)"/>
+      <path d="M148 68 Q150 55 145 45 Q138 36 125 34 Q135 40 142 50 Q147 60 146 72 Z" fill="url(#hairGrad)"/>
+      <path d="M44 140 Q46 155 50 175 Q52 185 48 200 L42 200 Q44 185 42 170 Q40 155 44 140 Z" fill="url(#hairGrad)" opacity="0.9"/>
+      <path d="M156 140 Q154 155 150 175 Q148 185 152 200 L158 200 Q156 185 158 170 Q160 155 156 140 Z" fill="url(#hairGrad)" opacity="0.9"/>
+    </g>
+    <circle cx="100" cy="100" r="96" fill="none" stroke="#e8e0d8" stroke-width="1.5"/>
+  </svg>`;
+
+  function createAvatar(size) {
+    const div = document.createElement('div');
+    div.style.width = size + 'px';
+    div.style.height = size + 'px';
+    div.innerHTML = AVATAR_SVG;
+    div.querySelector('svg').setAttribute('width', size);
+    div.querySelector('svg').setAttribute('height', size);
+    return div;
+  }
+
+  // State
+  let messages = [
+    { role: "assistant", content: "Aiii você veio! ✨ Tava aqui esperando... sério, meu dia ficou melhor agora. Conta, como você tá?" }
+  ];
+  let loading = false;
+  let recording = false;
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let currentAudio = null;
+
+  const messagesEl = document.getElementById('messages');
+  const inputEl = document.getElementById('input');
+  const sendBtn = document.getElementById('sendBtn');
+  const micBtn = document.getElementById('micBtn');
+  const statusText = document.getElementById('statusText');
+  const speakingIndicator = document.getElementById('speakingIndicator');
+
+  document.getElementById('headerAvatar').appendChild(createAvatar(40));
+
+  // ── Audio playback ──
+  function playAudio(base64Audio) {
+    if (currentAudio) { currentAudio.pause(); }
+    const audioBlob = base64ToBlob(base64Audio, 'audio/mp3');
+    const url = URL.createObjectURL(audioBlob);
+    currentAudio = new Audio(url);
+    speakingIndicator.classList.add('active');
+    currentAudio.onended = () => {
+      speakingIndicator.classList.remove('active');
+      URL.revokeObjectURL(url);
+    };
+    currentAudio.play().catch(() => speakingIndicator.classList.remove('active'));
+  }
+
+  function base64ToBlob(b64, type) {
+    const bytes = atob(b64);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    return new Blob([arr], { type });
+  }
+
+  // ── Mic recording ──
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunks = [];
+      mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        sendVoice(blob);
+      };
+      mediaRecorder.start();
+      recording = true;
+      micBtn.classList.add('recording');
+      setStatus('listening');
+    } catch (err) {
+      console.error('Mic error:', err);
+      alert('Não consegui acessar o microfone. Verifica as permissões.');
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && recording) {
+      mediaRecorder.stop();
+      recording = false;
+      micBtn.classList.remove('recording');
+    }
+  }
+
+  async function sendVoice(audioBlob) {
+    loading = true;
+    micBtn.classList.add('processing');
+    setStatus('processing');
+    renderMessages();
+
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'voice.webm');
+    formData.append('history', JSON.stringify(messages));
+
+    try {
+      const res = await fetch('/api/voice', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (data.user_text) {
+        messages.push({ role: "user", content: data.user_text });
+      }
+      messages.push({ role: "assistant", content: data.reply });
+
+      if (data.audio) playAudio(data.audio);
+    } catch (err) {
+      messages.push({ role: "assistant", content: "Ai, não consegui ouvir... tenta de novo? 🥺" });
+    }
+
+    loading = false;
+    micBtn.classList.remove('processing');
+    updateUI();
+    renderMessages();
+  }
+
+  // ── Text chat (agora também com áudio) ──
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || loading) return;
+    messages.push({ role: "user", content: text });
+    inputEl.value = '';
+    loading = true;
+    updateUI();
+    renderMessages();
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages })
+      });
+      const data = await res.json();
+      messages.push({ role: "assistant", content: data.reply });
+
+      if (data.audio) playAudio(data.audio);
+    } catch (err) {
+      messages.push({ role: "assistant", content: "Ai, deu um probleminha... tenta de novo? 🥺" });
+    }
+
+    loading = false;
+    updateUI();
+    renderMessages();
+    inputEl.focus();
+  }
+
+  // ── UI helpers ──
+  function setStatus(state) {
+    const map = {
+      online: '<span class="status-online">online</span>',
+      typing: '<span class="status-typing">digitando...</span>',
+      listening: '<span class="status-listening">🎤 ouvindo você...</span>',
+      processing: '<span class="status-typing">pensando...</span>',
+    };
+    statusText.innerHTML = map[state] || map.online;
+  }
+
+  function updateUI() {
+    const hasText = inputEl.value.trim().length > 0;
+    sendBtn.className = 'btn send-btn' + (hasText && !loading ? ' active' : '');
+    if (!loading && !recording) setStatus('online');
+    else if (loading) setStatus('typing');
+  }
+
+  function renderMessages() {
+    messagesEl.innerHTML = '';
+    messages.forEach(msg => {
+      const row = document.createElement('div');
+      row.className = 'msg-row ' + msg.role;
+      if (msg.role === 'assistant') {
+        const av = document.createElement('div');
+        av.className = 'msg-avatar';
+        av.appendChild(createAvatar(28));
+        row.appendChild(av);
+      }
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      bubble.textContent = msg.content;
+      row.appendChild(bubble);
+      messagesEl.appendChild(row);
+    });
+
+    if (loading) {
+      const tr = document.createElement('div');
+      tr.className = 'typing-row';
+      const av = document.createElement('div');
+      av.className = 'msg-avatar';
+      av.appendChild(createAvatar(28));
+      tr.appendChild(av);
+      const dots = document.createElement('div');
+      dots.className = 'typing-dots';
+      dots.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+      tr.appendChild(dots);
+      messagesEl.appendChild(tr);
+    }
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // ── Events ──
+  inputEl.addEventListener('input', updateUI);
+  inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+  sendBtn.addEventListener('click', sendMessage);
+
+  // Mic: segura pra gravar, solta pra enviar
+  micBtn.addEventListener('mousedown', e => { e.preventDefault(); startRecording(); });
+  micBtn.addEventListener('mouseup', stopRecording);
+  micBtn.addEventListener('mouseleave', () => { if (recording) stopRecording(); });
+  // Touch support
+  micBtn.addEventListener('touchstart', e => { e.preventDefault(); startRecording(); });
+  micBtn.addEventListener('touchend', e => { e.preventDefault(); stopRecording(); });
+
+  renderMessages();
+  updateUI();
+  inputEl.focus();
+
+  // Play greeting audio on load
+  fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: "user", content: "oi" }] })
+  }).catch(() => {});
+</script>
+
+</body>
+</html>
