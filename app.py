@@ -109,9 +109,9 @@ NÃO invente informações. Extraia APENAS o que está explícito.""",
 
 
 async def generate_tts(text: str) -> str:
-    """Gera áudio com Edge TTS e retorna base64."""
-    import edge_tts
+    """Gera áudio com ElevenLabs e retorna base64."""
     import re
+    import httpx
 
     text_clean = re.sub(
         r'[\U00002702-\U000027B0'
@@ -130,18 +130,36 @@ async def generate_tts(text: str) -> str:
     if not text_clean:
         return None
 
-    voice = "pt-BR-FranciscaNeural"
-    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
-        audio_path = f.name
+    api_key = os.getenv("ELEVENLABS_API_KEY")
+    voice_id = os.getenv("ELEVENLABS_VOICE_ID", "tnSpp4vdxKPjI9w0GnoV")
 
-    communicate = edge_tts.Communicate(text_clean, voice)
-    await communicate.save(audio_path)
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
 
-    with open(audio_path, "rb") as f:
-        audio_b64 = base64.b64encode(f.read()).decode()
+    async with httpx.AsyncClient(timeout=30.0) as client_http:
+        response = await client_http.post(
+            url,
+            headers={
+                "xi-api-key": api_key,
+                "Content-Type": "application/json",
+            },
+            json={
+                "text": text_clean,
+                "model_id": "eleven_multilingual_v2",
+                "voice_settings": {
+                    "stability": 0.4,
+                    "similarity_boost": 0.75,
+                    "style": 0.6,
+                    "use_speaker_boost": True,
+                },
+            },
+        )
 
-    os.unlink(audio_path)
-    return audio_b64
+        if response.status_code != 200:
+            print(f"⚠️ ElevenLabs erro {response.status_code}: {response.text}")
+            return None
+
+        audio_b64 = base64.b64encode(response.content).decode()
+        return audio_b64
 
 
 # ── Endpoint: chat por texto ──
@@ -280,10 +298,10 @@ if __name__ == "__main__":
         "Amanda",
         "http://127.0.0.1:8000",
         width=420,
-        height=680,
+        height=720,
         resizable=True,
         min_size=(360, 500),
         x=None,
-        y=None,
+        y=30,
     )
     webview.start()
