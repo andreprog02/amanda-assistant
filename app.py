@@ -280,10 +280,10 @@ if __name__ == "__main__":
         "Amanda",
         "http://127.0.0.1:8000",
         width=420,
-        height=720,
+        height=680,
         resizable=True,
         min_size=(360, 500),
         x=None,
-        y=30,
+        y=None,
     )
     webview.start()
