@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 import anthropic
+from library import get_library, get_library_context
 from prompt import AMANDA_PROMPT
 from database import (
     init_db, create_conversation, get_latest_conversation,
@@ -16,7 +17,7 @@ from database import (
 )
 from news import get_news_context
 from mood import get_mood_context
-from environment import get_expression_image, get_environment_context
+from roleplay import get_roleplay_image, get_roleplay_context
 from personality import get_engine, quick_analyze, analyze_user_message
 
 
@@ -187,7 +188,7 @@ IMPORTANTE: Quando você não souber algo de verdade, admita com charme. "Ai, is
     mood = get_mood_context()
     prompt += "\n\n" + mood
 
-    env = get_environment_context()
+    env = get_roleplay_context()
     prompt += "\n\n" + env
 
     return prompt
@@ -296,7 +297,7 @@ def get_groq_reply(messages: list, system: str) -> str:
                 "Content-Type": "application/json",
             },
             json={
-                "model": "llama-3.1-8b-instant",
+                "model": "llama-3.3-70b-versatile",
                 "messages": groq_messages,
                 "max_tokens": 300,
                 "temperature": 0.85,
@@ -478,7 +479,7 @@ async def chat(request: Request):
         except Exception as e:
             print(f"⚠️ Erro no TTS: {e}")
 
-        image = get_expression_image(emotion)
+        image = get_roleplay_image(emotion)
 
         # Monta response com stats se disponível
         response_data = {
@@ -603,7 +604,7 @@ async def image_chat(
         except Exception as e:
             print(f"⚠️ Erro no TTS: {e}")
 
-        expr_image = get_expression_image(emotion)
+        expr_image = get_roleplay_image(emotion)
 
         return JSONResponse({
             "reply": reply,
@@ -667,7 +668,7 @@ async def voice_chat(
         except Exception as e:
             print(f"⚠️ Erro no TTS: {e}")
 
-        image = get_expression_image(emotion)
+        image = get_roleplay_image(emotion)
 
         return JSONResponse({
             "user_text": user_text,
@@ -693,10 +694,10 @@ async def list_memories():
     return JSONResponse({"memories": memories})
 
 
-# ── Endpoint: expressão do ambiente atual ──
+# ── Endpoint: expressão do roleplay atual ──
 @app.get("/api/environment")
 async def current_environment(emotion: str = "neutral"):
-    image = get_expression_image(emotion)
+    image = get_roleplay_image(emotion)
     return JSONResponse({"image": image})
 
 
@@ -728,7 +729,7 @@ async def greeting():
         except:
             pass
 
-        image = get_expression_image(emotion)
+        image = get_roleplay_image(emotion)
         return JSONResponse({"reply": reply, "emotion": emotion, "audio": audio_b64, "image": image})
     except:
         fallbacks = {
@@ -743,7 +744,7 @@ async def greeting():
         else: msgs = fallbacks["madruga"]
 
         msg = random.choice(msgs)
-        image = get_expression_image("neutral")
+        image = get_roleplay_image("neutral")
         return JSONResponse({"reply": msg, "emotion": "neutral", "audio": None, "image": image})
 
 

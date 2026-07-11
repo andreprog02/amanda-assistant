@@ -343,7 +343,7 @@
   const speakingIndicator = document.getElementById('speakingIndicator');
 
   function setExpression(imagePath) {
-    // imagePath vem da API: ex "/static/expressions/morning_tea_neutral.png"
+    // imagePath vem da API: ex "/static/roleplay/nail_designer/neutral.png"
     // Tenta versão .webm primeiro (mesmo nome, extensão diferente)
     const videoPath = imagePath.replace('.png', '.webm');
 
@@ -371,15 +371,14 @@
   }
 
   function setEmotion(emotion) {
-    // Busca o path correto do backend (respeita o ambiente atual)
+    // Busca o path correto do backend (respeita o roleplay atual)
     fetch('/api/environment?emotion=' + emotion)
       .then(r => r.json())
       .then(d => {
         if (d.image) setExpression(d.image);
-        else setExpression('/static/expressions/' + emotion + '.png');
       })
       .catch(() => {
-        setExpression('/static/expressions/' + emotion + '.png');
+        console.warn('Falha ao buscar expressão:', emotion);
       });
   }
 

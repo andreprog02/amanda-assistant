@@ -1,86 +1,18 @@
 Traceback (most recent call last):
-  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\app.py", line 334, in chat
-    raw_reply = get_claude_reply(messages)
-  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\app.py", line 188, in get_claude_reply
-    response = client.messages.create(
-        model=MODEL,
-    ...<2 lines>...
-        messages=messages,
-    )
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_utils\_utils.py", line 275, in wrapper
-    return func(*args, **kwargs)
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\resources\messages.py", line 888, in create
-    return self._post(
-           ~~~~~~~~~~^
-        "/v1/messages",
-        ^^^^^^^^^^^^^^^
-    ...<22 lines>...
-        stream_cls=Stream[RawMessageStreamEvent],
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_base_client.py", line 1279, in post
-    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
-                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_base_client.py", line 956, in request
-    return self._request(
-           ~~~~~~~~~~~~~^
-        cast_to=cast_to,
-        ^^^^^^^^^^^^^^^^
-    ...<3 lines>...
-        retries_taken=retries_taken,
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_base_client.py", line 1060, in _request
-    raise self._make_status_error_from_response(err.response) from None
-anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CcuN5m6pzCU9dWa6eMJrg'}
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
+  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\app.py", line 461, in chat
+    engine.process_interaction(analysis)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\personality.py", line 427, in process_interaction
+    self.adjust_stat("confianca", 0.15, reason="interação")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 --- Logging error ---
 Traceback (most recent call last):
-  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\app.py", line 334, in chat
-    raw_reply = get_claude_reply(messages)
-  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\app.py", line 188, in get_claude_reply
-    response = client.messages.create(
-        model=MODEL,
-    ...<2 lines>...
-        messages=messages,
-    )
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_utils\_utils.py", line 275, in wrapper
-    return func(*args, **kwargs)
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\resources\messages.py", line 888, in create
-    return self._post(
-           ~~~~~~~~~~^
-        "/v1/messages",
-        ^^^^^^^^^^^^^^^
-    ...<22 lines>...
-        stream_cls=Stream[RawMessageStreamEvent],
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_base_client.py", line 1279, in post
-    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
-                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_base_client.py", line 956, in request
-    return self._request(
-           ~~~~~~~~~~~~~^
-        cast_to=cast_to,
-        ^^^^^^^^^^^^^^^^
-    ...<3 lines>...
-        retries_taken=retries_taken,
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_base_client.py", line 1060, in _request
-    raise self._make_status_error_from_response(err.response) from None
-anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CcuN5m6pzCU9dWa6eMJrg'}
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
+  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\app.py", line 461, in chat
+    engine.process_interaction(analysis)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\personality.py", line 427, in process_interaction
+    self.adjust_stat("confianca", 0.15, reason="interação")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 --- Logging error ---
 Traceback (most recent call last):
   File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
@@ -89,7 +21,7 @@ Traceback (most recent call last):
   File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
     return codecs.charmap_encode(input,self.errors,encoding_table)[0]
            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-UnicodeEncodeError: 'charmap' codec can't encode character '\u274c' in position 398: character maps to <undefined>
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f4ca' in position 413: character maps to <undefined>
 Call stack:
   File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1012, in _bootstrap
     self._bootstrap_inner()
@@ -119,3 +51,13 @@ Call stack:
     logger.error('\n'.join(log_lines), exc_info=exc_info)
 Unable to print the message and arguments - possible formatting error.
 Use the traceback above to help find the error.
+Exception in callback _ProactorBasePipeTransport._call_connection_lost()
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost()>
+Traceback (most recent call last):
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] Foi forçado o cancelamento de uma conexão existente pelo host remoto
