@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
-import anthropic
 from library import get_library, get_library_context
 from prompt import AMANDA_PROMPT
 from database import (
@@ -27,8 +26,6 @@ from voice_provider import get_voice_provider, generate_tts, get_active_voice_na
 load_dotenv()
 
 app = FastAPI()
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-MODEL = os.getenv("MODEL", "claude-sonnet-4-6")
 
 # Inicializa banco direto (fora do evento de startup)
 db_available = False
@@ -227,14 +224,11 @@ def extract_emotion(text: str) -> tuple:
 
 
 def extract_memories(user_text: str, msg_id: int):
-    """Usa o Claude pra extrair fatos importantes da mensagem do usuário."""
+    """Usa o provider ativo pra extrair fatos importantes da mensagem do usuário."""
     if not db_available:
         return
     try:
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=500,
-            system="""Você é um extrator de informações. Analise a mensagem do usuário e extraia APENAS fatos concretos e pessoais sobre ele.
+        memory_system = """Você é um extrator de informações. Analise a mensagem do usuário e extraia APENAS fatos concretos e pessoais sobre ele.
 
 Responda APENAS em JSON, sem markdown, sem explicação. Formato:
 [{"category": "categoria", "content": "fato", "importance": 1-10}]
@@ -247,11 +241,16 @@ Exemplos:
 - "Oi tudo bem?" → []
 
 Se não houver fatos pessoais, retorne: []
-NÃO invente informações. Extraia APENAS o que está explícito.""",
-            messages=[{"role": "user", "content": user_text}],
+NÃO invente informações. Extraia APENAS o que está explícito."""
+
+        raw = get_reply(
+            [{"role": "user", "content": user_text}],
+            memory_system,
         )
 
-        text = "".join(b.text for b in response.content if b.type == "text").strip()
+        text = raw.strip()
+        # Remove tags de emoção que o provider pode ter adicionado
+        text = re.sub(r'^\s*\[([A-Za-z]+)\]\s*', '', text)
         text = text.replace("```json", "").replace("```", "").strip()
 
         facts = json.loads(text)
@@ -377,47 +376,13 @@ async def image_chat(
 
         messages = json.loads(history)
 
-        image_message = {
-            "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": content_type,
-                        "data": image_b64,
-                    },
-                },
-                {
-                    "type": "text",
-                    "text": user_text,
-                },
-            ],
-        }
-
-        api_messages = []
-        for m in messages:
-            api_messages.append({"role": m["role"], "content": m["content"]})
-        api_messages.append(image_message)
-
-        # Tenta Claude com imagem primeiro, se falhar usa provider ativo sem imagem
+        # Tenta responder sobre a foto via provider ativo
         system = build_system_prompt()
-        try:
-            response = client.messages.create(
-                model=MODEL,
-                max_tokens=1000,
-                system=system,
-                messages=api_messages,
-            )
-            raw_reply = "".join(block.text for block in response.content if block.type == "text")
-        except Exception as e:
-            print(f"⚠️ Claude falhou na imagem: {e}")
-            # Fallback: responde sem ver a foto via provider ativo
-            text_messages = [m for m in api_messages if isinstance(m.get("content"), str)]
-            text_messages.append({"role": "user", "content": f"(a pessoa enviou uma foto) {user_text}"})
-            raw_reply = get_reply(text_messages, system)
-            if not raw_reply:
-                raw_reply = "[NEUTRAL] Ai, não consegui ver a foto agora... me descreve o que tem nela?"
+        text_messages = list(messages)
+        text_messages.append({"role": "user", "content": f"(a pessoa enviou uma foto) {user_text}"})
+        raw_reply = get_reply(text_messages, system)
+        if not raw_reply:
+            raw_reply = "[NEUTRAL] Ai, não consegui ver a foto agora... me descreve o que tem nela?"
 
         emotion, reply = extract_emotion(raw_reply)
         print(f"📸 Foto recebida | Emoção: {emotion}")
