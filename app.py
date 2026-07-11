@@ -20,6 +20,7 @@ from mood import get_mood_context
 from roleplay import get_roleplay_image, get_roleplay_context
 from personality import get_engine, quick_analyze, analyze_user_message
 from provider import get_provider, get_reply, get_active_provider_name, force_rescan
+from voice_provider import get_voice_provider, generate_tts, get_active_voice_name, force_voice_rescan
 
 
 
@@ -40,6 +41,7 @@ except Exception:
 # Conecta ao melhor provider disponível
 print("\n🚀 Iniciando Amanda...")
 get_provider()
+get_voice_provider()
 
 # Conversa atual
 current_conversation_id = None
@@ -267,61 +269,6 @@ NÃO invente informações. Extraia APENAS o que está explícito.""",
         print(f"⚠️ Erro ao extrair memórias: {e}")
 
 
-async def generate_tts(text: str) -> str:
-    """Gera áudio com ElevenLabs e retorna base64."""
-    import re
-    import httpx
-
-    text_clean = re.sub(
-        r'[\U00002702-\U000027B0'
-        r'\U0000FE00-\U0000FE0F'
-        r'\U0001F000-\U0001FFFF'
-        r'\U00002600-\U000027BF'
-        r'\U0001F900-\U0001F9FF'
-        r'\U0001FA00-\U0001FA6F'
-        r'\U0001FA70-\U0001FAFF'
-        r'\U00002934-\U00002935'
-        r'\U0000231A-\U0000231B'
-        r'\u200d\ufe0f]+',
-        '', text
-    ).strip()
-
-    # Remove qualquer tag de emoção que tenha escapado
-    text_clean = re.sub(r'\[([A-Za-z]+)\]\s*', '', text_clean).strip()
-
-    if not text_clean:
-        return None
-
-    api_key = os.getenv("ELEVENLABS_API_KEY")
-    voice_id = os.getenv("ELEVENLABS_VOICE_ID", "zGjIP4SZlMnY9m93k97r")
-
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-
-    async with httpx.AsyncClient(timeout=30.0) as client_http:
-        response = await client_http.post(
-            url,
-            headers={
-                "xi-api-key": api_key,
-                "Content-Type": "application/json",
-            },
-            json={
-                "text": text_clean,
-                "model_id": "eleven_multilingual_v2",
-                "voice_settings": {
-                    "stability": 0.4,
-                    "similarity_boost": 0.75,
-                    "style": 0.6,
-                    "use_speaker_boost": True,
-                },
-            },
-        )
-
-        if response.status_code != 200:
-            print(f"⚠️ ElevenLabs erro {response.status_code}: {response.text}")
-            return None
-
-        audio_b64 = base64.b64encode(response.content).decode()
-        return audio_b64
 
 
 # ── Endpoint: chat por texto ──
@@ -584,17 +531,20 @@ async def current_environment(emotion: str = "neutral"):
 @app.get("/api/provider")
 async def provider_status():
     return JSONResponse({
-        "provider": get_active_provider_name(),
+        "llm": get_active_provider_name(),
+        "voice": get_active_voice_name(),
     })
 
 
 # ── Endpoint: forçar nova varredura de providers ──
 @app.post("/api/provider/rescan")
 async def provider_rescan():
-    result = force_rescan()
+    llm_result = force_rescan()
+    voice_result = force_voice_rescan()
     return JSONResponse({
-        "provider": get_active_provider_name(),
-        "connected": result is not None,
+        "llm": get_active_provider_name(),
+        "voice": get_active_voice_name(),
+        "connected": llm_result is not None,
     })
 
 
