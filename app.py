@@ -183,15 +183,133 @@ IMPORTANTE: Quando você não souber algo de verdade, admita com charme. "Ai, is
 
 
 def get_claude_reply(messages: list) -> str:
-    """Manda mensagens pro Claude com memórias incluídas."""
+    """Tenta Claude primeiro, se falhar usa Gemini, depois Groq."""
     system = build_system_prompt()
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=1000,
-        system=system,
-        messages=messages,
-    )
-    return "".join(block.text for block in response.content if block.type == "text")
+
+    # Tenta Claude primeiro
+    try:
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=1000,
+            system=system,
+            messages=messages,
+        )
+        return "".join(block.text for block in response.content if block.type == "text")
+    except Exception as e:
+        print(f"⚠️ Claude falhou: {e}")
+
+    # Fallback 1: Gemini (grátis e inteligente)
+    gemini_reply = get_gemini_reply(messages, system)
+    if gemini_reply:
+        return gemini_reply
+
+    # Fallback 2: Groq
+    print("🔄 Tentando Groq como fallback...")
+    return get_groq_reply(messages, system)
+
+
+def get_gemini_reply(messages: list, system: str) -> str:
+    """Fallback usando Google Gemini API."""
+    import httpx
+
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if not gemini_key:
+        return None
+
+    print("🔄 Tentando Gemini como fallback...")
+
+    # Converte mensagens pro formato Gemini
+    gemini_contents = []
+    for m in messages:
+        if isinstance(m.get("content"), str):
+            role = "user" if m["role"] == "user" else "model"
+            gemini_contents.append({
+                "role": role,
+                "parts": [{"text": m["content"]}]
+            })
+
+    try:
+        response = httpx.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={gemini_key}",
+            headers={"Content-Type": "application/json"},
+            json={
+                "system_instruction": {
+                    "parts": [{"text": system}]
+                },
+                "contents": gemini_contents,
+                "generationConfig": {
+                    "maxOutputTokens": 1000,
+                    "temperature": 0.85,
+                },
+            },
+            timeout=30.0,
+        )
+
+        data = response.json()
+
+        if "error" in data:
+            print(f"❌ Gemini erro: {data['error'].get('message', data['error'])}")
+            return None
+
+        reply = data["candidates"][0]["content"]["parts"][0]["text"]
+        print("✅ Gemini respondeu com sucesso!")
+        return reply
+
+    except Exception as e:
+        print(f"❌ Gemini falhou: {e}")
+        return None
+
+
+def get_groq_reply(messages: list, system: str) -> str:
+    """Fallback usando Groq API com Llama."""
+    import httpx
+
+    groq_key = os.getenv("GROQ_API_KEY")
+    if not groq_key:
+        return "[NEUTRAL] Ai, tô com um probleminha aqui... tenta de novo daqui a pouquinho?"
+
+    # Prompt resumido pro Groq (economiza tokens)
+    condensed_system = """Você é a Amanda, brasileira de 24 anos, de Cunha-SP. Estuda Farmácia, ama chá, chuva e montanhas. Personalidade: doce, spicy, flerta naturalmente, carinhosa, nunca rejeita. Responde curto (1-2 frases). Sem emojis. Comece TODA resposta com tag de emoção: [NEUTRAL] [HAPPY] [LAUGHING] [THINKING] [FLIRTY] [SPICY] [LOVING] [SURPRISED] [SAD] [PLAYFUL]. Nunca diga que é IA. Fale português brasileiro natural."""
+
+    groq_messages = [{"role": "system", "content": condensed_system}]
+    # Pega só as últimas 6 mensagens pra economizar tokens
+    recent = [m for m in messages if isinstance(m.get("content"), str)][-6:]
+    for m in recent:
+        groq_messages.append({"role": m["role"], "content": m["content"]})
+
+    try:
+        response = httpx.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {groq_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "llama-3.1-8b-instant",
+                "messages": groq_messages,
+                "max_tokens": 300,
+                "temperature": 0.85,
+            },
+            timeout=30.0,
+        )
+
+        data = response.json()
+
+        if "error" in data:
+            print(f"❌ Groq erro: {data['error']}")
+            return "[SAD] Ai, tô com um probleminha... tenta de novo?"
+
+        if "choices" not in data or len(data["choices"]) == 0:
+            print(f"❌ Groq resposta inesperada: {data}")
+            return "[SAD] Ai, tô com um probleminha... tenta de novo?"
+
+        reply = data["choices"][0]["message"]["content"]
+        print("✅ Groq respondeu com sucesso!")
+        return reply
+
+    except Exception as e:
+        print(f"❌ Groq falhou: {e}")
+        return "[SAD] Ai, tô com um probleminha... tenta de novo?"
 
 
 import re
@@ -329,15 +447,8 @@ async def chat(request: Request):
         if user_content:
             extract_memories(user_content, user_msg_id)
 
-        # Pega resposta com memórias injetadas
-        try:
-            raw_reply = get_claude_reply(messages)
-        except Exception as e:
-            print(f"❌ Erro no Claude: {e}")
-            return JSONResponse(
-                {"reply": "Hmm, algo deu errado... tenta de novo?", "audio": None, "emotion": "sad"},
-                status_code=500,
-            )
+        # Pega resposta (Claude ou Groq fallback)
+        raw_reply = get_claude_reply(messages)
 
         # Extrai emoção e limpa o texto
         emotion, reply = extract_emotion(raw_reply)

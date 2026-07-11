@@ -1,0 +1,121 @@
+Traceback (most recent call last):
+  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\app.py", line 334, in chat
+    raw_reply = get_claude_reply(messages)
+  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\app.py", line 188, in get_claude_reply
+    response = client.messages.create(
+        model=MODEL,
+    ...<2 lines>...
+        messages=messages,
+    )
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_utils\_utils.py", line 275, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\resources\messages.py", line 888, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages",
+        ^^^^^^^^^^^^^^^
+    ...<22 lines>...
+        stream_cls=Stream[RawMessageStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_base_client.py", line 1279, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_base_client.py", line 956, in request
+    return self._request(
+           ~~~~~~~~~~~~~^
+        cast_to=cast_to,
+        ^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        retries_taken=retries_taken,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_base_client.py", line 1060, in _request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CcuN5m6pzCU9dWa6eMJrg'}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\app.py", line 334, in chat
+    raw_reply = get_claude_reply(messages)
+  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\app.py", line 188, in get_claude_reply
+    response = client.messages.create(
+        model=MODEL,
+    ...<2 lines>...
+        messages=messages,
+    )
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_utils\_utils.py", line 275, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\resources\messages.py", line 888, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages",
+        ^^^^^^^^^^^^^^^
+    ...<22 lines>...
+        stream_cls=Stream[RawMessageStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_base_client.py", line 1279, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_base_client.py", line 956, in request
+    return self._request(
+           ~~~~~~~~~~~~~^
+        cast_to=cast_to,
+        ^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        retries_taken=retries_taken,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\anthropic\_base_client.py", line 1060, in _request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CcuN5m6pzCU9dWa6eMJrg'}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u274c' in position 398: character maps to <undefined>
+Call stack:
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1012, in _bootstrap
+    self._bootstrap_inner()
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1041, in _bootstrap_inner
+    self.run()
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 992, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\Amanda.pyw", line 20, in start_server
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="warning")
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\uvicorn\main.py", line 577, in run
+    server.run()
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\uvicorn\server.py", line 65, in run
+    return asyncio.run(self.serve(sockets=sockets))
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 194, in run
+    return runner.run(main)
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 707, in run_until_complete
+    self.run_forever()
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 678, in run_forever
+    self._run_once()
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 2018, in _run_once
+    handle = self._ready.popleft()
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 1890, in call_exception_handler
+    self.default_exception_handler(context)
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 1864, in default_exception_handler
+    logger.error('\n'.join(log_lines), exc_info=exc_info)
+Unable to print the message and arguments - possible formatting error.
+Use the traceback above to help find the error.

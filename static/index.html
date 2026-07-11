@@ -126,25 +126,24 @@
       background-image: url('/static/backgrounds/home.png');
       background-size: cover;
       background-position: center;
+      background-color: #f0ece4;
       z-index: 0;
     }
     .avatar-character {
       position: relative;
       z-index: 1;
-      max-height: 115vh;
-      max-width: 100%;
-      margin-bottom: -15px;
+      max-height: 70vh;
+      max-width: 85%;
       object-fit: contain;
       transition: opacity 0.4s ease;
-      animation: breathing 4s ease-in-out infinite;
       transform-origin: center bottom;
     }
     .avatar-character.fade { opacity: 0; }
-    .avatar-character.speaking {
-      animation: breathing-speaking 2.5s ease-in-out infinite;
-    }
     .avatar-character.entering {
       animation: character-enter 0.8s ease-out forwards;
+    }
+    video.avatar-character {
+      background: transparent;
     }
 
     @keyframes breathing {
@@ -298,7 +297,10 @@
 
   <div class="avatar-area">
     <div class="avatar-bg" id="avatarBg"></div>
-    <img class="avatar-character" id="avatarImg" src="/static/characters/home_neutral.png" style="opacity:0;">
+    <video class="avatar-character" id="avatarVideo" autoplay loop muted playsinline
+           src="/static/characters/home_neutral.webm"></video>
+    <img class="avatar-character" id="avatarImg" src="/static/characters/home_neutral.png" 
+         style="display:none;">
 
     <div class="speaking-indicator" id="speakingIndicator">
       <div class="speaking-bar"></div>
@@ -335,6 +337,7 @@
   let currentAudio = null;
   let currentEmotion = 'neutral';
 
+  const avatarVideo = document.getElementById('avatarVideo');
   const avatarImg = document.getElementById('avatarImg');
   const avatarBg = document.getElementById('avatarBg');
   const lastMessageEl = document.getElementById('lastMessage');
@@ -347,40 +350,38 @@
   const speakingIndicator = document.getElementById('speakingIndicator');
 
   function setExpression(imagePath) {
-    // Tenta versão recortada (characters/) primeiro
     const emotion = imagePath.split('/').pop().replace('.png', '');
+    const videoPath = '/static/characters/home_' + emotion + '.webm';
     const charPath = '/static/characters/home_' + emotion + '.png';
 
-    avatarImg.classList.add('fade');
-    setTimeout(() => {
-      const testImg = new Image();
-      testImg.onload = () => {
-        avatarImg.src = charPath;
-        avatarImg.classList.remove('fade');
-      };
-      testImg.onerror = () => {
-        avatarImg.src = imagePath;
-        avatarImg.classList.remove('fade');
-      };
-      testImg.src = charPath;
-    }, 300);
+    // Testa vídeo primeiro
+    fetch(videoPath, {method:'HEAD'}).then(r => {
+      if (r.ok) {
+        avatarVideo.classList.add('fade');
+        setTimeout(() => {
+          avatarVideo.src = videoPath;
+          avatarVideo.play();
+          avatarVideo.style.display = '';
+          avatarImg.style.display = 'none';
+          avatarVideo.classList.remove('fade');
+        }, 300);
+      } else { throw 'no video'; }
+    }).catch(() => {
+      // Fallback pra imagem
+      avatarVideo.style.display = 'none';
+      avatarImg.style.display = '';
+      avatarImg.classList.add('fade');
+      setTimeout(() => {
+        const testImg = new Image();
+        testImg.onload = () => { avatarImg.src = charPath; avatarImg.classList.remove('fade'); };
+        testImg.onerror = () => { avatarImg.src = imagePath; avatarImg.classList.remove('fade'); };
+        testImg.src = charPath;
+      }, 300);
+    });
   }
 
   function setEmotion(emotion) {
-    const charPath = '/static/characters/home_' + emotion + '.png';
-    avatarImg.classList.add('fade');
-    setTimeout(() => {
-      const testImg = new Image();
-      testImg.onload = () => {
-        avatarImg.src = charPath;
-        avatarImg.classList.remove('fade');
-      };
-      testImg.onerror = () => {
-        avatarImg.src = '/static/expressions/' + emotion + '.png';
-        avatarImg.classList.remove('fade');
-      };
-      testImg.src = charPath;
-    }, 300);
+    setExpression('/static/expressions/' + emotion + '.png');
   }
 
   function showLastMessage(text, isUser) {
@@ -613,9 +614,9 @@
         app.classList.add('ready');
 
         // Amanda "entra" na cena
-        avatarImg.style.opacity = '';
-        avatarImg.classList.add('entering');
-        setTimeout(() => avatarImg.classList.remove('entering'), 800);
+        avatarVideo.style.opacity = '1';
+        avatarVideo.classList.add('entering');
+        setTimeout(() => avatarVideo.classList.remove('entering'), 800);
 
         if (data.image) setExpression(data.image);
         else if (data.emotion) setEmotion(data.emotion);
@@ -629,9 +630,9 @@
       setTimeout(() => {
         splash.style.display = 'none';
         app.classList.add('ready');
-        avatarImg.style.opacity = '';
-        avatarImg.classList.add('entering');
-        setTimeout(() => avatarImg.classList.remove('entering'), 800);
+        avatarVideo.style.opacity = '1';
+        avatarVideo.classList.add('entering');
+        setTimeout(() => avatarVideo.classList.remove('entering'), 800);
         inputEl.focus();
       }, 500);
     }
