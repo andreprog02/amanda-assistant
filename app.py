@@ -17,6 +17,9 @@ from database import (
 from news import get_news_context
 from mood import get_mood_context
 from environment import get_expression_image, get_environment_context
+from personality import get_engine, quick_analyze, analyze_user_message
+
+
 
 load_dotenv()
 
@@ -163,6 +166,14 @@ Você é uma pessoa real que sabe coisas do mundo. Quando alguém perguntar cois
 IMPORTANTE: Quando você não souber algo de verdade, admita com charme. "Ai, isso eu não sei mesmo... mas posso chutar se quiser" é melhor do que inventar."""
 
     prompt = AMANDA_PROMPT + "\n\n" + time_context
+
+    # Stats de personalidade (sistema RPG)
+    try:
+        engine = get_engine()
+        personality_context = engine.get_prompt_context()
+        prompt += "\n\n" + personality_context
+    except Exception as e:
+        print(f"⚠️ Erro ao carregar personality stats: {e}")
 
     if db_available:
         memories = get_memories_summary()
@@ -439,44 +450,81 @@ async def chat(request: Request):
         messages = body.get("messages", [])
         conv_id = get_or_create_conversation()
 
-        # Salva mensagem do usuário
         user_content = messages[-1]["content"] if messages else ""
         user_msg_id = safe_save_message(conv_id, "user", user_content)
+
+        # ── Processar stats de personalidade ──
+        try:
+            engine = get_engine()
+            analysis = quick_analyze(user_content)
+            engine.process_interaction(analysis)
+        except Exception as e:
+            print(f"⚠️ Erro nos stats: {e}")
 
         # Extrai memórias em background
         if user_content:
             extract_memories(user_content, user_msg_id)
 
-        # Pega resposta (Claude ou Groq fallback)
+        # Pega resposta (Claude ou fallback)
         raw_reply = get_claude_reply(messages)
 
-        # Extrai emoção e limpa o texto
         emotion, reply = extract_emotion(raw_reply)
-        print(f"😊 Emoção: {emotion}")
-
-        # Salva resposta da Amanda (sem a tag)
         safe_save_message(conv_id, "assistant", reply)
 
-        # Gera áudio (do texto limpo)
+        # TTS
         audio_b64 = None
         try:
             audio_b64 = await generate_tts(reply)
         except Exception as e:
             print(f"⚠️ Erro no TTS: {e}")
 
-        # Pega caminho da imagem com ambiente
         image = get_expression_image(emotion)
 
-        return JSONResponse({"reply": reply, "audio": audio_b64, "emotion": emotion, "image": image})
+        # Monta response com stats se disponível
+        response_data = {
+            "reply": reply,
+            "audio": audio_b64,
+            "emotion": emotion,
+            "image": image,
+        }
+        try:
+            engine = get_engine()
+            response_data["stats"] = engine.get_stats_summary()
+        except:
+            pass
 
+        return JSONResponse(response_data)
     except Exception as e:
         import traceback
         traceback.print_exc()
         return JSONResponse(
             {"reply": "Hmm, algo deu errado... me perdoa?", "audio": None},
             status_code=500,
+
+
         )
 
+
+
+
+@app.get("/api/stats")
+async def personality_stats():
+    engine = get_engine()
+    engine.apply_decay()
+    engine.sync_energy_to_time()
+    return JSONResponse({
+        "stats": engine.get_stats_summary(),
+        "prompt_context": engine.get_prompt_context(),
+    })
+
+@app.post("/api/stats/reset")
+async def reset_stats():
+    """Reseta stats pro padrão (útil pra debug)."""
+    engine = get_engine()
+    from personality import DEFAULT_STATS
+    engine.stats = {k: dict(v) for k, v in DEFAULT_STATS.items()}
+    engine.save()
+    return JSONResponse({"message": "Stats resetados", "stats": engine.get_stats_summary()})
 
 # ── Endpoint: receber imagem do usuário ──
 @app.post("/api/image")
@@ -523,14 +571,26 @@ async def image_chat(
             api_messages.append({"role": m["role"], "content": m["content"]})
         api_messages.append(image_message)
 
+        # Tenta Claude com imagem primeiro, se falhar usa fallback texto
         system = build_system_prompt()
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=1000,
-            system=system,
-            messages=api_messages,
-        )
-        raw_reply = "".join(block.text for block in response.content if block.type == "text")
+        try:
+            response = client.messages.create(
+                model=MODEL,
+                max_tokens=1000,
+                system=system,
+                messages=api_messages,
+            )
+            raw_reply = "".join(block.text for block in response.content if block.type == "text")
+        except Exception as e:
+            print(f"⚠️ Claude falhou na imagem: {e}")
+            # Fallback: responde sem ver a foto (Gemini/Groq não recebem imagem)
+            text_messages = [m for m in api_messages if isinstance(m.get("content"), str)]
+            text_messages.append({"role": "user", "content": f"(a pessoa enviou uma foto) {user_text}"})
+            raw_reply = get_gemini_reply(text_messages, system)
+            if not raw_reply:
+                raw_reply = get_groq_reply(text_messages, system)
+            if not raw_reply:
+                raw_reply = "[NEUTRAL] Ai, não consegui ver a foto agora... me descreve o que tem nela?"
 
         emotion, reply = extract_emotion(raw_reply)
         print(f"📸 Foto recebida | Emoção: {emotion}")
@@ -633,10 +693,10 @@ async def list_memories():
     return JSONResponse({"memories": memories})
 
 
-# ── Endpoint: ambiente atual (pra voltar ao neutral certo) ──
+# ── Endpoint: expressão do ambiente atual ──
 @app.get("/api/environment")
-async def current_environment():
-    image = get_expression_image("neutral")
+async def current_environment(emotion: str = "neutral"):
+    image = get_expression_image(emotion)
     return JSONResponse({"image": image})
 
 
@@ -713,7 +773,7 @@ if __name__ == "__main__":
         "http://127.0.0.1:8000",
         width=420,
         height=720,
-        resizable=True,
+        resizable=False,
         min_size=(360, 500),
         x=None,
         y=30,

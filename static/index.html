@@ -10,7 +10,7 @@
       height: 100%;
       overflow: hidden;
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: #f0ece4;
+      background: #1a1a1a;
       user-select: none;
     }
     #app {
@@ -18,6 +18,9 @@
       flex-direction: column;
       height: 100vh;
       align-items: center;
+      max-width: 480px;
+      margin: 0 auto;
+      background: #f0ece4;
     }
     #app.ready {
       display: flex;
@@ -109,7 +112,7 @@
     .status-typing { color: #e8915a; }
     .status-listening { color: #e85a5a; }
 
-    /* Avatar — cenário + personagem em camadas */
+    /* Avatar — imagem completa (cenário + personagem juntos) */
     .avatar-area {
       flex: 1;
       display: flex;
@@ -119,24 +122,16 @@
       position: relative;
       width: 100%;
       overflow: hidden;
-    }
-    .avatar-bg {
-      position: absolute;
-      inset: 0;
-      background-image: url('/static/backgrounds/home.png');
-      background-size: cover;
-      background-position: center;
-      background-color: #f0ece4;
-      z-index: 0;
+      background: #f0ece4;
     }
     .avatar-character {
-      position: relative;
-      z-index: 1;
-      max-height: 70vh;
-      max-width: 85%;
-      object-fit: contain;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center bottom;
       transition: opacity 0.4s ease;
-      transform-origin: center bottom;
     }
     .avatar-character.fade { opacity: 0; }
     .avatar-character.entering {
@@ -296,10 +291,9 @@
   </div>
 
   <div class="avatar-area">
-    <div class="avatar-bg" id="avatarBg"></div>
     <video class="avatar-character" id="avatarVideo" autoplay loop muted playsinline
-           src="/static/characters/home_neutral.webm"></video>
-    <img class="avatar-character" id="avatarImg" src="/static/characters/home_neutral.png" 
+           src="" style="display:none;"></video>
+    <img class="avatar-character" id="avatarImg" src=""
          style="display:none;">
 
     <div class="speaking-indicator" id="speakingIndicator">
@@ -339,7 +333,6 @@
 
   const avatarVideo = document.getElementById('avatarVideo');
   const avatarImg = document.getElementById('avatarImg');
-  const avatarBg = document.getElementById('avatarBg');
   const lastMessageEl = document.getElementById('lastMessage');
   const inputEl = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
@@ -350,11 +343,10 @@
   const speakingIndicator = document.getElementById('speakingIndicator');
 
   function setExpression(imagePath) {
-    const emotion = imagePath.split('/').pop().replace('.png', '');
-    const videoPath = '/static/characters/home_' + emotion + '.webm';
-    const charPath = '/static/characters/home_' + emotion + '.png';
+    // imagePath vem da API: ex "/static/expressions/morning_tea_neutral.png"
+    // Tenta versão .webm primeiro (mesmo nome, extensão diferente)
+    const videoPath = imagePath.replace('.png', '.webm');
 
-    // Testa vídeo primeiro
     fetch(videoPath, {method:'HEAD'}).then(r => {
       if (r.ok) {
         avatarVideo.classList.add('fade');
@@ -367,21 +359,28 @@
         }, 300);
       } else { throw 'no video'; }
     }).catch(() => {
-      // Fallback pra imagem
+      // Usa imagem direto
       avatarVideo.style.display = 'none';
       avatarImg.style.display = '';
       avatarImg.classList.add('fade');
       setTimeout(() => {
-        const testImg = new Image();
-        testImg.onload = () => { avatarImg.src = charPath; avatarImg.classList.remove('fade'); };
-        testImg.onerror = () => { avatarImg.src = imagePath; avatarImg.classList.remove('fade'); };
-        testImg.src = charPath;
+        avatarImg.src = imagePath;
+        avatarImg.classList.remove('fade');
       }, 300);
     });
   }
 
   function setEmotion(emotion) {
-    setExpression('/static/expressions/' + emotion + '.png');
+    // Busca o path correto do backend (respeita o ambiente atual)
+    fetch('/api/environment?emotion=' + emotion)
+      .then(r => r.json())
+      .then(d => {
+        if (d.image) setExpression(d.image);
+        else setExpression('/static/expressions/' + emotion + '.png');
+      })
+      .catch(() => {
+        setExpression('/static/expressions/' + emotion + '.png');
+      });
   }
 
   function showLastMessage(text, isUser) {
