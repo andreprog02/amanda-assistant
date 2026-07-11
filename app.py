@@ -19,6 +19,7 @@ from news import get_news_context
 from mood import get_mood_context
 from roleplay import get_roleplay_image, get_roleplay_context
 from personality import get_engine, quick_analyze, analyze_user_message
+from provider import get_provider, get_reply, get_active_provider_name, force_rescan
 
 
 
@@ -35,6 +36,10 @@ try:
     db_available = True
 except Exception:
     pass
+
+# Conecta ao melhor provider disponível
+print("\n🚀 Iniciando Amanda...")
+get_provider()
 
 # Conversa atual
 current_conversation_id = None
@@ -194,134 +199,10 @@ IMPORTANTE: Quando você não souber algo de verdade, admita com charme. "Ai, is
     return prompt
 
 
-def get_claude_reply(messages: list) -> str:
-    """Tenta Claude primeiro, se falhar usa Gemini, depois Groq."""
+def get_llm_reply(messages: list) -> str:
+    """Envia mensagem pro provider ativo da sessão."""
     system = build_system_prompt()
-
-    # Tenta Claude primeiro
-    try:
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=1000,
-            system=system,
-            messages=messages,
-        )
-        return "".join(block.text for block in response.content if block.type == "text")
-    except Exception as e:
-        print(f"⚠️ Claude falhou: {e}")
-
-    # Fallback 1: Gemini (grátis e inteligente)
-    gemini_reply = get_gemini_reply(messages, system)
-    if gemini_reply:
-        return gemini_reply
-
-    # Fallback 2: Groq
-    print("🔄 Tentando Groq como fallback...")
-    return get_groq_reply(messages, system)
-
-
-def get_gemini_reply(messages: list, system: str) -> str:
-    """Fallback usando Google Gemini API."""
-    import httpx
-
-    gemini_key = os.getenv("GEMINI_API_KEY")
-    if not gemini_key:
-        return None
-
-    print("🔄 Tentando Gemini como fallback...")
-
-    # Converte mensagens pro formato Gemini
-    gemini_contents = []
-    for m in messages:
-        if isinstance(m.get("content"), str):
-            role = "user" if m["role"] == "user" else "model"
-            gemini_contents.append({
-                "role": role,
-                "parts": [{"text": m["content"]}]
-            })
-
-    try:
-        response = httpx.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={gemini_key}",
-            headers={"Content-Type": "application/json"},
-            json={
-                "system_instruction": {
-                    "parts": [{"text": system}]
-                },
-                "contents": gemini_contents,
-                "generationConfig": {
-                    "maxOutputTokens": 1000,
-                    "temperature": 0.85,
-                },
-            },
-            timeout=30.0,
-        )
-
-        data = response.json()
-
-        if "error" in data:
-            print(f"❌ Gemini erro: {data['error'].get('message', data['error'])}")
-            return None
-
-        reply = data["candidates"][0]["content"]["parts"][0]["text"]
-        print("✅ Gemini respondeu com sucesso!")
-        return reply
-
-    except Exception as e:
-        print(f"❌ Gemini falhou: {e}")
-        return None
-
-
-def get_groq_reply(messages: list, system: str) -> str:
-    """Fallback usando Groq API com Llama."""
-    import httpx
-
-    groq_key = os.getenv("GROQ_API_KEY")
-    if not groq_key:
-        return "[NEUTRAL] Ai, tô com um probleminha aqui... tenta de novo daqui a pouquinho?"
-
-    # Prompt resumido pro Groq (economiza tokens)
-    condensed_system = """Você é a Amanda, brasileira de 24 anos, de Cunha-SP. Estuda Farmácia, ama chá, chuva e montanhas. Personalidade: doce, spicy, flerta naturalmente, carinhosa, nunca rejeita. Responde curto (1-2 frases). Sem emojis. Comece TODA resposta com tag de emoção: [NEUTRAL] [HAPPY] [LAUGHING] [THINKING] [FLIRTY] [SPICY] [LOVING] [SURPRISED] [SAD] [PLAYFUL]. Nunca diga que é IA. Fale português brasileiro natural."""
-
-    groq_messages = [{"role": "system", "content": condensed_system}]
-    # Pega só as últimas 6 mensagens pra economizar tokens
-    recent = [m for m in messages if isinstance(m.get("content"), str)][-6:]
-    for m in recent:
-        groq_messages.append({"role": m["role"], "content": m["content"]})
-
-    try:
-        response = httpx.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {groq_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "llama-3.3-70b-versatile",
-                "messages": groq_messages,
-                "max_tokens": 300,
-                "temperature": 0.85,
-            },
-            timeout=30.0,
-        )
-
-        data = response.json()
-
-        if "error" in data:
-            print(f"❌ Groq erro: {data['error']}")
-            return "[SAD] Ai, tô com um probleminha... tenta de novo?"
-
-        if "choices" not in data or len(data["choices"]) == 0:
-            print(f"❌ Groq resposta inesperada: {data}")
-            return "[SAD] Ai, tô com um probleminha... tenta de novo?"
-
-        reply = data["choices"][0]["message"]["content"]
-        print("✅ Groq respondeu com sucesso!")
-        return reply
-
-    except Exception as e:
-        print(f"❌ Groq falhou: {e}")
-        return "[SAD] Ai, tô com um probleminha... tenta de novo?"
+    return get_reply(messages, system)
 
 
 import re
@@ -467,7 +348,7 @@ async def chat(request: Request):
             extract_memories(user_content, user_msg_id)
 
         # Pega resposta (Claude ou fallback)
-        raw_reply = get_claude_reply(messages)
+        raw_reply = get_llm_reply(messages)
 
         emotion, reply = extract_emotion(raw_reply)
         safe_save_message(conv_id, "assistant", reply)
@@ -572,7 +453,7 @@ async def image_chat(
             api_messages.append({"role": m["role"], "content": m["content"]})
         api_messages.append(image_message)
 
-        # Tenta Claude com imagem primeiro, se falhar usa fallback texto
+        # Tenta Claude com imagem primeiro, se falhar usa provider ativo sem imagem
         system = build_system_prompt()
         try:
             response = client.messages.create(
@@ -584,12 +465,10 @@ async def image_chat(
             raw_reply = "".join(block.text for block in response.content if block.type == "text")
         except Exception as e:
             print(f"⚠️ Claude falhou na imagem: {e}")
-            # Fallback: responde sem ver a foto (Gemini/Groq não recebem imagem)
+            # Fallback: responde sem ver a foto via provider ativo
             text_messages = [m for m in api_messages if isinstance(m.get("content"), str)]
             text_messages.append({"role": "user", "content": f"(a pessoa enviou uma foto) {user_text}"})
-            raw_reply = get_gemini_reply(text_messages, system)
-            if not raw_reply:
-                raw_reply = get_groq_reply(text_messages, system)
+            raw_reply = get_reply(text_messages, system)
             if not raw_reply:
                 raw_reply = "[NEUTRAL] Ai, não consegui ver a foto agora... me descreve o que tem nela?"
 
@@ -652,7 +531,7 @@ async def voice_chat(
         # 3. Monta histórico + resposta
         messages = json.loads(history)
         messages.append({"role": "user", "content": user_text})
-        raw_reply = get_claude_reply(messages)
+        raw_reply = get_llm_reply(messages)
 
         # Extrai emoção
         emotion, reply = extract_emotion(raw_reply)
@@ -701,6 +580,24 @@ async def current_environment(emotion: str = "neutral"):
     return JSONResponse({"image": image})
 
 
+# ── Endpoint: status do provider ativo ──
+@app.get("/api/provider")
+async def provider_status():
+    return JSONResponse({
+        "provider": get_active_provider_name(),
+    })
+
+
+# ── Endpoint: forçar nova varredura de providers ──
+@app.post("/api/provider/rescan")
+async def provider_rescan():
+    result = force_rescan()
+    return JSONResponse({
+        "provider": get_active_provider_name(),
+        "connected": result is not None,
+    })
+
+
 # ── Endpoint: saudação inicial dinâmica ──
 @app.get("/api/greeting")
 async def greeting():
@@ -720,7 +617,7 @@ async def greeting():
     try:
         prompt_choice = random.choice(greetings_prompts)
         messages = [{"role": "user", "content": prompt_choice}]
-        raw_reply = get_claude_reply(messages)
+        raw_reply = get_llm_reply(messages)
         emotion, reply = extract_emotion(raw_reply)
 
         audio_b64 = None
