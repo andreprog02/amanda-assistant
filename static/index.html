@@ -86,33 +86,7 @@
       50% { box-shadow: 0 4px 32px rgba(0,0,0,0.18); }
     }
 
-    /* Header minimal */
-    .header {
-      width: 100%;
-      padding: 10px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #fff;
-      border-bottom: 1px solid #e5e0d8;
-      flex-shrink: 0;
-      -webkit-app-region: drag;
-    }
-    .header-name {
-      font-size: 16px;
-      font-weight: 600;
-      color: #1a1a1a;
-      letter-spacing: 0.02em;
-    }
-    .header-status {
-      font-size: 11px;
-      margin-left: 8px;
-    }
-    .status-online { color: #6bab72; }
-    .status-typing { color: #e8915a; }
-    .status-listening { color: #e85a5a; }
-
-    /* Avatar — imagem completa (cenário + personagem juntos) */
+    /* Avatar area — ocupa todo espaço disponível */
     .avatar-area {
       flex: 1;
       display: flex;
@@ -123,33 +97,43 @@
       width: 100%;
       overflow: hidden;
       background: #f0ece4;
+      -webkit-app-region: drag;
     }
-    .avatar-character {
+
+    /* Container de vídeos/imagens — todos empilhados, crossfade via opacity */
+    .avatar-layer {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
-      object-position: center bottom;
+      object-position: center top;
+      opacity: 0;
       transition: opacity 0.4s ease;
+      pointer-events: none;
     }
-    .avatar-character.fade { opacity: 0; }
-    .avatar-character.entering {
+    .avatar-layer.active {
+      opacity: 1;
+    }
+    .avatar-layer.entering {
       animation: character-enter 0.8s ease-out forwards;
     }
-    video.avatar-character {
-      background: transparent;
+
+    /* Fallback pra imagem quando não tem vídeo */
+    .avatar-fallback {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .avatar-fallback.active {
+      opacity: 1;
     }
 
-    @keyframes breathing {
-      0%, 100% { transform: scale(1) translateY(0); }
-      50% { transform: scale(1.006) translateY(-2px); }
-    }
-    @keyframes breathing-speaking {
-      0%, 100% { transform: scale(1) translateY(0) rotate(0deg); }
-      25% { transform: scale(1.008) translateY(-2px) rotate(0.3deg); }
-      75% { transform: scale(1.004) translateY(-1px) rotate(-0.3deg); }
-    }
     @keyframes character-enter {
       0% { opacity: 0; transform: scale(0.95) translateY(20px); }
       100% { opacity: 1; transform: scale(1) translateY(0); }
@@ -169,6 +153,8 @@
       font-size: 11px;
       color: #6bab72;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      z-index: 10;
+      -webkit-app-region: no-drag;
     }
     .speaking-indicator.active { display: flex; }
     .speaking-bar { width: 3px; height: 10px; background: #6bab72; border-radius: 2px; }
@@ -177,39 +163,47 @@
     .speaking-bar:nth-child(3) { animation: speakBar 0.8s ease-in-out 0.3s infinite; }
     .speaking-bar:nth-child(4) { animation: speakBar 0.8s ease-in-out 0.45s infinite; }
 
-    /* Last message bubble */
+    /* Message area — altura fixa pra não afetar a imagem */
+    .message-area {
+      width: 100%;
+      padding: 10px 16px;
+      background: #fff;
+      border-top: 1px solid #e5e0d8;
+      flex-shrink: 0;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
     .last-message {
-      position: absolute;
-      bottom: 12px;
-      left: 16px;
-      right: 16px;
+      width: 100%;
       text-align: center;
+      overflow-y: auto;
+      max-height: 50px;
     }
     .last-message-bubble {
       display: inline-block;
-      max-width: 90%;
-      padding: 10px 16px;
-      background: rgba(255,255,255,0.92);
-      border-radius: 16px;
+      max-width: 95%;
+      padding: 8px 14px;
+      background: #f5f2ed;
+      border-radius: 14px;
       font-size: 13.5px;
       line-height: 1.5;
       color: #1a1a1a;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-      backdrop-filter: blur(8px);
       animation: fadeIn 0.3s ease-out;
     }
     .last-message-bubble.user-msg {
-      background: rgba(217,240,212,0.92);
+      background: #d9f0d4;
     }
 
     /* Typing dots inside bubble */
     .typing-bubble {
       display: inline-flex;
       gap: 5px;
-      padding: 12px 20px;
-      background: rgba(255,255,255,0.92);
-      border-radius: 16px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 10px 18px;
+      background: #f5f2ed;
+      border-radius: 14px;
     }
     .typing-dot { width: 6px; height: 6px; border-radius: 50%; background: #b0b8c1; }
     .typing-dot:nth-child(1) { animation: bounce 1.2s ease-in-out 0s infinite; }
@@ -230,6 +224,7 @@
       border: 1.5px solid #ddd6cc; background: #faf8f4;
       color: #1a1a1a; font-size: 13.5px; font-family: inherit;
       outline: none; transition: border-color 0.2s;
+      -webkit-app-region: no-drag;
     }
     .input-field:focus { border-color: #b8a88a; }
     .input-field::placeholder { color: #b0a898; }
@@ -240,6 +235,7 @@
       color: #fff; font-size: 16px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       transition: all 0.2s; flex-shrink: 0;
+      -webkit-app-region: no-drag;
     }
     .send-btn { background: #ddd6cc; cursor: default; }
     .send-btn.active { background: #6bab72; cursor: pointer; box-shadow: 0 2px 8px rgba(107,171,114,0.25); }
@@ -262,6 +258,35 @@
       0%, 100% { box-shadow: 0 0 0 0 rgba(232,90,90,0.4); }
       50% { box-shadow: 0 0 0 10px rgba(232,90,90,0); }
     }
+    /* Mouth overlay — lip sync */
+    .mouth-overlay {
+      position: absolute;
+      /* Ajuste esses valores pra posicionar em cima da boca no vídeo */
+      bottom: 38%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 28px;
+      z-index: 5;
+      pointer-events: none;
+      display: none;
+    }
+    .mouth-overlay.active {
+      display: block;
+    }
+    .mouth-sprite {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: 0;
+      transition: opacity 0.05s ease;
+    }
+    .mouth-sprite.active {
+      opacity: 1;
+    }
+
     @keyframes speakBar {
       0%, 100% { height: 4px; }
       50% { height: 14px; }
@@ -285,16 +310,16 @@
 </div>
 
 <div id="app">
-  <div class="header">
-    <span class="header-name">Amanda</span>
-    <span class="header-status" id="statusText"><span class="status-online">● online</span></span>
-  </div>
+  <div class="avatar-area" id="avatarArea">
+    <!-- Vídeos/imagens são inseridos aqui dinamicamente pelo preload -->
 
-  <div class="avatar-area">
-    <video class="avatar-character" id="avatarVideo" autoplay loop muted playsinline
-           src="" style="display:none;"></video>
-    <img class="avatar-character" id="avatarImg" src=""
-         style="display:none;">
+    <!-- Mouth overlay pra lip sync -->
+    <div class="mouth-overlay" id="mouthOverlay">
+      <img class="mouth-sprite active" id="mouthA" src="/static/mouth/mouth_A_closed.png">
+      <img class="mouth-sprite" id="mouthB" src="/static/mouth/mouth_B_half.png">
+      <img class="mouth-sprite" id="mouthC" src="/static/mouth/mouth_C_open.png">
+      <img class="mouth-sprite" id="mouthD" src="/static/mouth/mouth_D_round.png">
+    </div>
 
     <div class="speaking-indicator" id="speakingIndicator">
       <div class="speaking-bar"></div>
@@ -303,9 +328,11 @@
       <div class="speaking-bar"></div>
       falando
     </div>
+  </div>
 
+  <div class="message-area">
     <div class="last-message" id="lastMessage">
-      <div class="last-message-bubble">Aiii você veio! Tava aqui esperando... sério, meu dia ficou melhor agora.</div>
+      <div class="last-message-bubble">conectando...</div>
     </div>
   </div>
 
@@ -321,8 +348,11 @@
 </div>
 
 <script>
+  // ══════════════════════════════════════════
+  // Estado
+  // ══════════════════════════════════════════
   let messages = [
-    { role: "assistant", content: "Aiii você veio! Tava aqui esperando... sério, meu dia ficou melhor agora." }
+    { role: "assistant", content: "conectando..." }
   ];
   let loading = false;
   let recording = false;
@@ -331,47 +361,153 @@
   let currentAudio = null;
   let currentEmotion = 'neutral';
 
-  const avatarVideo = document.getElementById('avatarVideo');
-  const avatarImg = document.getElementById('avatarImg');
+  // Preload: guarda referências dos vídeos/imagens carregados
+  const mediaLayers = {};  // { emotion: <video> ou <img> element }
+  let preloaded = false;
+
+  const avatarArea = document.getElementById('avatarArea');
   const lastMessageEl = document.getElementById('lastMessage');
   const inputEl = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
   const micBtn = document.getElementById('micBtn');
   const photoBtn = document.getElementById('photoBtn');
   const photoInput = document.getElementById('photoInput');
-  const statusText = document.getElementById('statusText');
   const speakingIndicator = document.getElementById('speakingIndicator');
 
-  function setExpression(imagePath) {
-    // imagePath vem da API: ex "/static/roleplay/nail_designer/neutral.png"
-    // Tenta versão .webm primeiro (mesmo nome, extensão diferente)
-    const videoPath = imagePath.replace('.png', '.webm');
+  // Timer pra voltar ao neutral
+  let emotionTimer = null;
 
-    fetch(videoPath, {method:'HEAD'}).then(r => {
-      if (r.ok) {
-        avatarVideo.classList.add('fade');
-        setTimeout(() => {
-          avatarVideo.src = videoPath;
-          avatarVideo.play();
-          avatarVideo.style.display = '';
-          avatarImg.style.display = 'none';
-          avatarVideo.classList.remove('fade');
-        }, 300);
-      } else { throw 'no video'; }
-    }).catch(() => {
-      // Usa imagem direto
-      avatarVideo.style.display = 'none';
-      avatarImg.style.display = '';
-      avatarImg.classList.add('fade');
-      setTimeout(() => {
-        avatarImg.src = imagePath;
-        avatarImg.classList.remove('fade');
-      }, 300);
-    });
+  // ══════════════════════════════════════════
+  // Preload — carrega todos os vídeos/imagens na inicialização
+  // ══════════════════════════════════════════
+  async function preloadExpressions() {
+    try {
+      const res = await fetch('/api/expressions');
+      const data = await res.json();
+      const expressions = data.expressions;
+
+      for (const [emotion, media] of Object.entries(expressions)) {
+        if (media.video) {
+          const video = document.createElement('video');
+          video.className = 'avatar-layer';
+          video.muted = true;
+          video.playsInline = true;
+          video.preload = 'auto';
+          video.src = media.video;
+
+          // Só neutral faz loop, emoções tocam uma vez
+          if (emotion === 'neutral') {
+            video.autoplay = true;
+            video.loop = true;
+          } else {
+            video.autoplay = false;
+            video.loop = false;
+            // Quando termina, volta pro neutral com crossfade
+            video.addEventListener('ended', () => {
+              switchEmotion('neutral');
+            });
+          }
+
+          video.load();
+          avatarArea.insertBefore(video, speakingIndicator);
+          mediaLayers[emotion] = video;
+        } else if (media.image) {
+          const img = document.createElement('img');
+          img.className = 'avatar-layer';
+          img.src = media.image;
+          avatarArea.insertBefore(img, speakingIndicator);
+          mediaLayers[emotion] = img;
+        }
+      }
+
+      preloaded = true;
+      console.log('✅ Preload concluído:', Object.keys(mediaLayers).join(', '));
+    } catch (err) {
+      console.warn('⚠️ Preload falhou, usando fallback:', err);
+    }
+  }
+
+  // ══════════════════════════════════════════
+  // Crossfade — troca de expressão sem pausa
+  // ══════════════════════════════════════════
+  function switchEmotion(emotion) {
+    if (emotion === currentEmotion) return true;
+
+    // Cancela timer anterior (legado, pra imagens)
+    if (emotionTimer) {
+      clearTimeout(emotionTimer);
+      emotionTimer = null;
+    }
+
+    // Se tem preload, usa crossfade
+    if (preloaded && mediaLayers[emotion]) {
+      // Esconde todos
+      Object.values(mediaLayers).forEach(el => el.classList.remove('active'));
+      
+      const el = mediaLayers[emotion];
+      el.classList.add('active');
+
+      // Se é vídeo de emoção (não neutral), rebobina e toca do início
+      if (el.play && emotion !== 'neutral') {
+        el.currentTime = 0;
+        el.play().catch(() => {});
+      }
+      // Se é neutral, garante que tá tocando
+      if (el.play && emotion === 'neutral') {
+        el.play().catch(() => {});
+      }
+
+      currentEmotion = emotion;
+      return true;
+    }
+
+    return false;
+  }
+
+  function setExpression(imagePath) {
+    // Extrai o nome da emoção do path
+    // Ex: /static/roleplay/main/happy.mp4 → happy
+    // Ex: /static/roleplay/main/main_happy.png → happy
+    const filename = imagePath.split('/').pop().split('.')[0];
+    const parts = filename.split('_');
+    // Se o nome tem prefixo (main_happy), pega a última parte
+    const emotion = parts.length > 1 ? parts.slice(1).join('_') : parts[0];
+
+    if (switchEmotion(emotion)) return;
+
+    // Fallback: cria elemento on-the-fly se não tiver preload
+    const ext = imagePath.split('.').pop().toLowerCase();
+    if (ext === 'mp4' || ext === 'webm') {
+      const video = document.createElement('video');
+      video.className = 'avatar-layer active';
+      video.autoplay = true;
+      video.loop = (emotion === 'neutral');
+      video.muted = true;
+      video.playsInline = true;
+      video.src = imagePath;
+      if (emotion !== 'neutral') {
+        video.addEventListener('ended', () => switchEmotion('neutral'));
+      }
+      Object.values(mediaLayers).forEach(el => el.classList.remove('active'));
+      avatarArea.insertBefore(video, speakingIndicator);
+      mediaLayers[emotion] = video;
+    } else {
+      // Fallback imagem
+      Object.values(mediaLayers).forEach(el => el.classList.remove('active'));
+      const img = document.createElement('img');
+      img.className = 'avatar-layer active';
+      img.src = imagePath;
+      avatarArea.insertBefore(img, speakingIndicator);
+      mediaLayers[emotion] = img;
+    }
+    currentEmotion = emotion;
   }
 
   function setEmotion(emotion) {
-    // Busca o path correto do backend (respeita o roleplay atual)
+    // Tenta preload primeiro (instantâneo)
+    if (switchEmotion(emotion)) return;
+
+    // Senão, busca o path do backend
     fetch('/api/environment?emotion=' + emotion)
       .then(r => r.json())
       .then(d => {
@@ -382,6 +518,21 @@
       });
   }
 
+  // Volta ao neutral depois de X segundos (usado só pra imagens sem vídeo)
+  function scheduleNeutral(delay) {
+    // Se a emoção atual é um vídeo, o evento 'ended' já cuida
+    if (preloaded && mediaLayers[currentEmotion] && mediaLayers[currentEmotion].tagName === 'VIDEO' && currentEmotion !== 'neutral') {
+      return; // vídeo volta sozinho
+    }
+    if (emotionTimer) clearTimeout(emotionTimer);
+    emotionTimer = setTimeout(() => {
+      switchEmotion('neutral');
+    }, delay || 5000);
+  }
+
+  // ══════════════════════════════════════════
+  // UI helpers
+  // ══════════════════════════════════════════
   function showLastMessage(text, isUser) {
     if (loading && !text) {
       lastMessageEl.innerHTML = '<div class="typing-bubble"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
@@ -404,29 +555,126 @@
     return new Blob([arr], { type });
   }
 
+  // ══════════════════════════════════════════
+  // Lip Sync — Web Audio API
+  // ══════════════════════════════════════════
+  const mouthOverlay = document.getElementById('mouthOverlay');
+  const mouthSprites = {
+    A: document.getElementById('mouthA'),
+    B: document.getElementById('mouthB'),
+    C: document.getElementById('mouthC'),
+    D: document.getElementById('mouthD'),
+  };
+  let audioContext = null;
+  let lipSyncAnimFrame = null;
+
+  function setMouth(shape) {
+    Object.values(mouthSprites).forEach(s => s.classList.remove('active'));
+    if (mouthSprites[shape]) mouthSprites[shape].classList.add('active');
+  }
+
+  function startLipSyncWithAnalyser(analyser) {
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    let lastShape = 'A';
+    let frameCount = 0;
+
+    // Mostra overlay
+    mouthOverlay.classList.add('active');
+
+    function animate() {
+      analyser.getByteFrequencyData(dataArray);
+
+      // Calcula volume médio
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+      const avg = sum / dataArray.length;
+
+      // Frequências baixas vs altas pra diferenciar vogais
+      let lowSum = 0, highSum = 0;
+      const mid = Math.floor(dataArray.length / 3);
+      for (let i = 0; i < mid; i++) lowSum += dataArray[i];
+      for (let i = mid; i < dataArray.length; i++) highSum += dataArray[i];
+      const lowAvg = lowSum / mid;
+      const highAvg = highSum / (dataArray.length - mid);
+
+      // Determina formato da boca baseado na amplitude e frequência
+      let shape = 'A';
+      if (avg < 15) {
+        shape = 'A'; // silêncio → boca fechada
+      } else if (avg < 40) {
+        shape = 'B'; // volume baixo → entreaberta
+      } else if (avg >= 40 && lowAvg > highAvg * 1.3) {
+        shape = 'D'; // mais graves → arredondada (O, U)
+      } else if (avg >= 40) {
+        shape = 'C'; // volume alto → aberta (A, E)
+      }
+
+      // Suavização: não troca todo frame
+      frameCount++;
+      if (frameCount % 2 === 0 || shape !== lastShape) {
+        setMouth(shape);
+        lastShape = shape;
+      }
+
+      lipSyncAnimFrame = requestAnimationFrame(animate);
+    }
+
+    animate();
+  }
+
+  function stopLipSync() {
+    if (lipSyncAnimFrame) {
+      cancelAnimationFrame(lipSyncAnimFrame);
+      lipSyncAnimFrame = null;
+    }
+    setMouth('A');
+    mouthOverlay.classList.remove('active');
+  }
+
   function playAudio(base64Audio) {
-    if (currentAudio) currentAudio.pause();
+    if (currentAudio) {
+      currentAudio.pause();
+      stopLipSync();
+    }
+
     const blob = base64ToBlob(base64Audio, 'audio/mp3');
     const url = URL.createObjectURL(blob);
+
+    // Cria novo Audio e AudioContext a cada vez
+    // (createMediaElementSource só funciona 1x por elemento)
     currentAudio = new Audio(url);
+
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    const source = audioContext.createMediaElementSource(currentAudio);
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.3;
+    source.connect(analyser);
+    analyser.connect(audioContext.destination);
+
     speakingIndicator.classList.add('active');
-    avatarImg.classList.add('speaking');
+
     currentAudio.onended = () => {
       speakingIndicator.classList.remove('active');
-      avatarImg.classList.remove('speaking');
+      stopLipSync();
       URL.revokeObjectURL(url);
-      setTimeout(() => {
-        fetch('/api/environment').then(r => r.json()).then(d => {
-          if (d.image) setExpression(d.image);
-        }).catch(() => setEmotion('neutral'));
-      }, 2000);
+      scheduleNeutral(2000);
     };
-    currentAudio.play().catch(() => {
+
+    currentAudio.play().then(() => {
+      startLipSyncWithAnalyser(analyser);
+    }).catch(() => {
       speakingIndicator.classList.remove('active');
-      avatarImg.classList.remove('speaking');
+      stopLipSync();
     });
   }
 
+  // ══════════════════════════════════════════
+  // Recording
+  // ══════════════════════════════════════════
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -440,7 +688,6 @@
       mediaRecorder.start();
       recording = true;
       micBtn.classList.add('recording');
-      setStatus('listening');
     } catch (err) {
       alert('Não consegui acessar o microfone.');
     }
@@ -454,10 +701,12 @@
     }
   }
 
+  // ══════════════════════════════════════════
+  // Envio de mensagens
+  // ══════════════════════════════════════════
   async function sendVoice(audioBlob) {
     loading = true;
     micBtn.classList.add('processing');
-    setStatus('processing');
     setEmotion('thinking');
     showLastMessage(null, false);
 
@@ -470,15 +719,17 @@
       const data = await res.json();
       if (data.user_text) messages.push({ role: "user", content: data.user_text });
       messages.push({ role: "assistant", content: data.reply });
-      if (data.image) setExpression(data.image);
-      else if (data.emotion) setEmotion(data.emotion);
+      if (data.emotion) setEmotion(data.emotion);
+      else if (data.image) setExpression(data.image);
       showLastMessage(data.reply, false);
       if (data.audio) playAudio(data.audio);
+      else scheduleNeutral(5000);
     } catch (err) {
       const msg = "Ai, não consegui ouvir... tenta de novo?";
       messages.push({ role: "assistant", content: msg });
       showLastMessage(msg, false);
       setEmotion('sad');
+      scheduleNeutral(4000);
     }
 
     loading = false;
@@ -504,15 +755,17 @@
       });
       const data = await res.json();
       messages.push({ role: "assistant", content: data.reply });
-      if (data.image) setExpression(data.image);
-      else if (data.emotion) setEmotion(data.emotion);
+      if (data.emotion) setEmotion(data.emotion);
+      else if (data.image) setExpression(data.image);
       showLastMessage(data.reply, false);
       if (data.audio) playAudio(data.audio);
+      else scheduleNeutral(5000);
     } catch (err) {
       const msg = "Ai, deu um probleminha... tenta de novo?";
       messages.push({ role: "assistant", content: msg });
       showLastMessage(msg, false);
       setEmotion('sad');
+      scheduleNeutral(4000);
     }
 
     loading = false;
@@ -520,23 +773,14 @@
     inputEl.focus();
   }
 
-  function setStatus(state) {
-    const map = {
-      online: '<span class="status-online">● online</span>',
-      typing: '<span class="status-typing">● pensando...</span>',
-      listening: '<span class="status-listening">● ouvindo...</span>',
-      processing: '<span class="status-typing">● processando...</span>',
-    };
-    statusText.innerHTML = map[state] || map.online;
-  }
-
   function updateUI() {
     const hasText = inputEl.value.trim().length > 0;
     sendBtn.className = 'btn send-btn' + (hasText && !loading ? ' active' : '');
-    if (!loading && !recording) setStatus('online');
-    else if (loading) setStatus('typing');
   }
 
+  // ══════════════════════════════════════════
+  // Event listeners
+  // ══════════════════════════════════════════
   inputEl.addEventListener('input', updateUI);
   inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
   sendBtn.addEventListener('click', sendMessage);
@@ -561,7 +805,6 @@
     inputEl.value = '';
     setEmotion('thinking');
     showLastMessage(null, false);
-    setStatus('processing');
     updateUI();
 
     messages.push({ role: "user", content: caption ? `[foto] ${caption}` : "[enviou uma foto]" });
@@ -575,15 +818,17 @@
       const res = await fetch('/api/image', { method: 'POST', body: formData });
       const data = await res.json();
       messages.push({ role: "assistant", content: data.reply });
-      if (data.image) setExpression(data.image);
-      else if (data.emotion) setEmotion(data.emotion);
+      if (data.emotion) setEmotion(data.emotion);
+      else if (data.image) setExpression(data.image);
       showLastMessage(data.reply, false);
       if (data.audio) playAudio(data.audio);
+      else scheduleNeutral(5000);
     } catch (err) {
       const msg = "Ai, não consegui ver a foto... tenta de novo?";
       messages.push({ role: "assistant", content: msg });
       showLastMessage(msg, false);
       setEmotion('sad');
+      scheduleNeutral(4000);
     }
 
     loading = false;
@@ -592,49 +837,57 @@
   }
 
   updateUI();
-  inputEl.focus();
 
-  // Busca saudação dinâmica e faz transição splash → app
+  // ══════════════════════════════════════════
+  // Inicialização — preload + greeting
+  // ══════════════════════════════════════════
   async function loadGreeting() {
     const splash = document.getElementById('splash');
     const app = document.getElementById('app');
 
-    try {
-      const res = await fetch('/api/greeting');
-      const data = await res.json();
-      messages[0] = { role: "assistant", content: data.reply };
-      showLastMessage(data.reply, false);
+    // Preload das expressões em paralelo com o greeting
+    const [greetingRes] = await Promise.allSettled([
+      fetch('/api/greeting').then(r => r.json()),
+      preloadExpressions(),
+    ]);
 
-      // Esconde splash, mostra app com Amanda entrando na cena
-      splash.classList.add('hidden');
-      setTimeout(() => {
-        splash.style.display = 'none';
-        app.classList.add('ready');
-
-        // Amanda "entra" na cena
-        avatarVideo.style.opacity = '1';
-        avatarVideo.classList.add('entering');
-        setTimeout(() => avatarVideo.classList.remove('entering'), 800);
-
-        if (data.image) setExpression(data.image);
-        else if (data.emotion) setEmotion(data.emotion);
-        if (data.audio) playAudio(data.audio);
-        inputEl.focus();
-      }, 500);
-
-    } catch (err) {
-      // Mesmo com erro, mostra o app
-      splash.classList.add('hidden');
-      setTimeout(() => {
-        splash.style.display = 'none';
-        app.classList.add('ready');
-        avatarVideo.style.opacity = '1';
-        avatarVideo.classList.add('entering');
-        setTimeout(() => avatarVideo.classList.remove('entering'), 800);
-        inputEl.focus();
-      }, 500);
+    // Processa greeting
+    let greetingData = null;
+    if (greetingRes.status === 'fulfilled') {
+      greetingData = greetingRes.value;
+      messages[0] = { role: "assistant", content: greetingData.reply };
+      showLastMessage(greetingData.reply, false);
     }
+
+    // Transição splash → app
+    splash.classList.add('hidden');
+    setTimeout(() => {
+      splash.style.display = 'none';
+      app.classList.add('ready');
+
+      // Mostra neutral com animação de entrada
+      if (mediaLayers['neutral']) {
+        mediaLayers['neutral'].classList.add('entering');
+        mediaLayers['neutral'].classList.add('active');
+        if (mediaLayers['neutral'].play) mediaLayers['neutral'].play().catch(() => {});
+        setTimeout(() => mediaLayers['neutral'].classList.remove('entering'), 800);
+      }
+
+      // Se greeting tem emoção específica, troca depois de aparecer
+      if (greetingData) {
+        if (greetingData.emotion && greetingData.emotion !== 'neutral') {
+          setTimeout(() => {
+            setEmotion(greetingData.emotion);
+            scheduleNeutral(5000);
+          }, 1000);
+        }
+        if (greetingData.audio) playAudio(greetingData.audio);
+      }
+
+      inputEl.focus();
+    }, 500);
   }
+
   loadGreeting();
 </script>
 

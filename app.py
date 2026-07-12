@@ -493,6 +493,56 @@ async def current_environment(emotion: str = "neutral"):
     return JSONResponse({"image": image})
 
 
+# ── Endpoint: lista expressões disponíveis (pra preload de vídeos) ──
+@app.get("/api/expressions")
+async def list_expressions():
+    """Retorna todas as expressões disponíveis no roleplay ativo com seus paths."""
+    from roleplay import get_current_roleplay, ROLEPLAYS, ROLEPLAY_DIR
+
+    rp_name = get_current_roleplay()
+    rp_config = ROLEPLAYS.get(rp_name, ROLEPLAYS["main"])
+    folder = rp_config["folder"]
+    folder_path = os.path.join(ROLEPLAY_DIR, folder)
+
+    expressions = {}
+    if os.path.exists(folder_path):
+        for f in os.listdir(folder_path):
+            name = os.path.splitext(f)[0]
+            ext = os.path.splitext(f)[1].lower()
+            emotion = name.replace(f"{folder}_", "")
+            if ext in ('.mp4', '.webm', '.png'):
+                if emotion not in expressions:
+                    expressions[emotion] = {}
+                if ext in ('.mp4', '.webm'):
+                    expressions[emotion]['video'] = f"/static/roleplay/{folder}/{f}"
+                elif ext == '.png':
+                    expressions[emotion]['image'] = f"/static/roleplay/{folder}/{f}"
+
+    # Fallback: se roleplay ativo não tem nada, usa main
+    if not expressions and rp_name != "main":
+        main_folder = ROLEPLAYS["main"]["folder"]
+        main_path = os.path.join(ROLEPLAY_DIR, main_folder)
+        if os.path.exists(main_path):
+            for f in os.listdir(main_path):
+                name = os.path.splitext(f)[0]
+                ext = os.path.splitext(f)[1].lower()
+                emotion = name.replace(f"{main_folder}_", "")
+                if ext in ('.mp4', '.webm', '.png'):
+                    if emotion not in expressions:
+                        expressions[emotion] = {}
+                    if ext in ('.mp4', '.webm'):
+                        expressions[emotion]['video'] = f"/static/roleplay/{main_folder}/{f}"
+                    elif ext == '.png':
+                        expressions[emotion]['image'] = f"/static/roleplay/{main_folder}/{f}"
+        folder = main_folder
+
+    return JSONResponse({
+        "roleplay": rp_name,
+        "folder": folder,
+        "expressions": expressions,
+    })
+
+
 # ── Endpoint: status do provider ativo ──
 @app.get("/api/provider")
 async def provider_status():
