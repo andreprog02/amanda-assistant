@@ -23,6 +23,7 @@ from voice_provider import get_voice_provider, generate_tts, get_active_voice_na
 
 
 
+
 load_dotenv()
 
 app = FastAPI()
@@ -567,11 +568,14 @@ async def serve_frontend():
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-
 if __name__ == "__main__":
     import uvicorn
     import threading
     import webview
+    import ctypes
+    from ctypes import wintypes
+
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
     def start_server():
         uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
@@ -581,14 +585,18 @@ if __name__ == "__main__":
 
     print("\n✨ Amanda tá online!\n")
 
+    rect = wintypes.RECT()
+    ctypes.windll.user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(rect), 0)
+    work_h = rect.bottom - rect.top
+
     webview.create_window(
         "Amanda",
         "http://127.0.0.1:8000",
         width=420,
-        height=720,
+        height=work_h,
         resizable=False,
         min_size=(360, 500),
-        x=None,
-        y=30,
+        x=0,
+        y=0,
     )
     webview.start()
