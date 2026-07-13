@@ -6,18 +6,32 @@ from datetime import datetime
 _news_cache = {"headlines": [], "last_update": 0}
 
 RSS_FEEDS = [
+    # Brasil / Geral
     "https://g1.globo.com/rss/g1/",
+    # Tecnologia
     "https://g1.globo.com/rss/g1/tecnologia/",
+    # Cultura pop / Entretenimento
     "https://g1.globo.com/rss/g1/pop-arte/",
+    "https://www.omelete.com.br/rss",
+    "https://feeds.folha.uol.com.br/ilustrada/rss091.xml",
+    # Ciência e Saúde
     "https://g1.globo.com/rss/g1/ciencia-e-saude/",
+    # Música e Celebridades
+    "https://www.vagalume.com.br/rss/noticias.xml",
+    # Mundo
+    "https://g1.globo.com/rss/g1/mundo/",
+    # YouTube — Feltrin (jornalismo, TV, entretenimento, atualiza várias vezes ao dia)
+    "https://www.youtube.com/feeds/videos.xml?channel_id=UCobKO7tmF9Z74ail3Mrwb_g",
+    # YouTube — Linhagem Geek (cultura pop, reviews, filmes, séries)
+    "https://www.youtube.com/feeds/videos.xml?channel_id=UCjuiVJmqil8VdRen0gh3Ewg",
 ]
 
 def fetch_news() -> list:
     """Busca notícias de feeds RSS brasileiros."""
     global _news_cache
 
-    # Retorna cache se atualizado nas últimas 2 horas
-    if time.time() - _news_cache["last_update"] < 7200 and _news_cache["headlines"]:
+    # Retorna cache se atualizado na última 1 hora
+    if time.time() - _news_cache["last_update"] < 3600 and _news_cache["headlines"]:
         return _news_cache["headlines"]
 
     headlines = []
@@ -43,7 +57,7 @@ def fetch_news() -> list:
             if key not in seen:
                 seen.add(key)
                 unique.append(h)
-        headlines = unique[:15]
+        headlines = unique[:20]
 
         _news_cache["headlines"] = headlines
         _news_cache["last_update"] = time.time()

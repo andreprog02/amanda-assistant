@@ -96,7 +96,7 @@ ROLEPLAYS = {
         ),
         "schedule": [
             # seg=0, qua=2, sex=4 das 15h às 16h
-            {"days": [0, 2, 4], "start": 15.0, "end": 16.0, "priority": 8},
+            {"days": [0, 2, 4], "start": 15.0, "end": 19.0, "priority": 8},
         ],
     },
 

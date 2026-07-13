@@ -1,63 +1,10 @@
 Traceback (most recent call last):
-  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\app.py", line 461, in chat
-    engine.process_interaction(analysis)
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
-  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\personality.py", line 427, in process_interaction
-    self.adjust_stat("confianca", 0.15, reason="interação")
-    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
---- Logging error ---
+  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\Amanda.pyw", line 17, in <module>
+    from app import app
 Traceback (most recent call last):
-  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\app.py", line 461, in chat
-    engine.process_interaction(analysis)
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
-  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\personality.py", line 427, in process_interaction
-    self.adjust_stat("confianca", 0.15, reason="interação")
-    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
---- Logging error ---
-Traceback (most recent call last):
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
-    stream.write(msg + self.terminator)
-    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\Amanda.pyw", line 17, in <module>
+    from app import app
+  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\app.py", line 40, in <module>
+      File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
     return codecs.charmap_encode(input,self.errors,encoding_table)[0]
-           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f4ca' in position 413: character maps to <undefined>
-Call stack:
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1012, in _bootstrap
-    self._bootstrap_inner()
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1041, in _bootstrap_inner
-    self.run()
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 992, in run
-    self._target(*self._args, **self._kwargs)
-  File "C:\Users\DELL\OneDrive\Documentos\Programacao\Amanda\Amanda.pyw", line 20, in start_server
-    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="warning")
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\uvicorn\main.py", line 577, in run
-    server.run()
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\uvicorn\server.py", line 65, in run
-    return asyncio.run(self.serve(sockets=sockets))
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 194, in run
-    return runner.run(main)
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
-    return self._loop.run_until_complete(task)
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 707, in run_until_complete
-    self.run_forever()
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 678, in run_forever
-    self._run_once()
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 2018, in _run_once
-    handle = self._ready.popleft()
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 1890, in call_exception_handler
-    self.default_exception_handler(context)
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 1864, in default_exception_handler
-    logger.error('\n'.join(log_lines), exc_info=exc_info)
-Unable to print the message and arguments - possible formatting error.
-Use the traceback above to help find the error.
-Exception in callback _ProactorBasePipeTransport._call_connection_lost()
-handle: <Handle _ProactorBasePipeTransport._call_connection_lost()>
-Traceback (most recent call last):
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\events.py", line 89, in _run
-    self._context.run(self._callback, *self._args)
-    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
-    self._sock.shutdown(socket.SHUT_RDWR)
-    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
-ConnectionResetError: [WinError 10054] Foi forçado o cancelamento de uma conexão existente pelo host remoto
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f680' in position 2: character maps to <undefined>
