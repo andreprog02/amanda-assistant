@@ -70,7 +70,7 @@ ROLEPLAYS = {
             "Ambiente quentinho, cheiro de chá. Você tá de boa curtindo o momento."
         ),
         "schedule": [
-            {"days": "weekend", "start": 6.25, "end": 16.5, "priority": 5},
+            {"days": "weekend", "start": 6.25, "end": 20.5, "priority": 5},
         ],
     },
 

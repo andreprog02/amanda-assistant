@@ -131,6 +131,41 @@ else:
         print(f"❌ {e}")
 
 
+# ── Z.ai (GLM) ──
+print("\n\n🟢 Z.ai (GLM):")
+key = os.getenv("ZAI_API_KEY", "")
+if not key:
+    print("   ❌ ZAI_API_KEY não encontrada no .env")
+else:
+    masked = key[:8] + "..." + key[-4:] if len(key) > 12 else key[:4] + "..."
+    print(f"   Key encontrada: {masked} ({len(key)} chars)")
+    import httpx
+    print(f"   Testando glm-4.5-flash...", end=" ")
+    try:
+        r = httpx.post(
+            "https://api.z.ai/api/paas/v4/chat/completions",
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "glm-4.5-flash",
+                "messages": [{"role": "user", "content": "oi"}],
+                "max_tokens": 10,
+            },
+            timeout=15.0,
+        )
+        data = r.json()
+        if "choices" in data:
+            print(f"✅ Respondeu!")
+        elif "error" in data:
+            print(f"❌ {data['error']}")
+        else:
+            print(f"⚠️ Resposta inesperada: {data}")
+    except Exception as e:
+        print(f"❌ {e}")
+
+
 # ── Groq ──
 print("\n\n🟠 Groq:")
 key = os.getenv("GROQ_API_KEY", "")
@@ -169,7 +204,7 @@ print("\n" + "=" * 50)
 print("📋 RESUMO DO .env:")
 print("=" * 50)
 env_vars = [
-    "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY",
+    "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "ZAI_API_KEY", "GROQ_API_KEY",
     "ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID",
     "EDGE_TTS_VOICE", "MODEL",
 ]

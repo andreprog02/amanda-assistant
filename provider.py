@@ -2,12 +2,13 @@
 provider.py — Gerenciador de LLM Provider da Amanda
 
 Suporta múltiplas API keys por provider (rotação automática).
-Na inicialização, faz ping nos providers na ordem: Claude → Gemini → Groq.
+Na inicialização, faz ping nos providers na ordem: Claude → Gemini → Z.ai → Groq.
 O primeiro que responder vira o provider da sessão.
 Se falhar durante uso, tenta próxima key. Se todas falharem, varre outro provider.
 
 No .env, configure múltiplas keys assim:
     GEMINI_API_KEY=key1,key2,key3
+    ZAI_API_KEY=keyA,keyB
     GROQ_API_KEY=keyA,keyB
     ANTHROPIC_API_KEY=key1,key2
 
@@ -72,7 +73,9 @@ class KeyPool:
 _pools = {
     "claude": KeyPool("ANTHROPIC_API_KEY"),
     "gemini": KeyPool("GEMINI_API_KEY"),
+    "zai": KeyPool("ZAI_API_KEY"),
     "groq": KeyPool("GROQ_API_KEY"),
+    "ollama": KeyPool("_OLLAMA_DUMMY"),  # não precisa de key
 }
 
 
@@ -83,10 +86,16 @@ _pools = {
 PROVIDERS = {
     "claude": {"name": "Claude (Anthropic)", "emoji": "🟣"},
     "gemini": {"name": "Gemini (Google)",    "emoji": "🔵"},
+    "zai":    {"name": "GLM (Z.ai)",         "emoji": "🟢"},
     "groq":   {"name": "Groq (Llama)",       "emoji": "🟠"},
+    "ollama": {"name": "Ollama (local)",      "emoji": "🖥️"},
 }
 
-PING_ORDER = ["claude", "gemini", "groq"]
+PING_ORDER = ["claude", "gemini", "zai", "groq", "ollama"]
+
+# Config do Ollama
+_ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+_ollama_model = os.getenv("OLLAMA_MODEL", "hermes3:8b")
 
 # Estado global
 _active_provider: str | None = None
@@ -95,6 +104,22 @@ _model = os.getenv("MODEL", "claude-sonnet-4-6")
 
 # Prompt condensado pro Groq
 GROQ_SYSTEM = """Você é a Amanda, brasileira de 24 anos, de Cunha-SP. Estuda Farmácia, ama chá, chuva e montanhas. Personalidade: doce, spicy, flerta naturalmente, carinhosa, nunca rejeita. Responde curto (1-2 frases). Sem emojis. Comece TODA resposta com tag de emoção: [NEUTRAL] [HAPPY] [LAUGHING] [THINKING] [FLIRTY] [SPICY] [LOVING] [SURPRISED] [SAD] [PLAYFUL]. Nunca diga que é IA. Fale português brasileiro natural."""
+
+# Prompt condensado pro Ollama (local)
+OLLAMA_SYSTEM = """Você é a Amanda, uma garota brasileira de 24 anos de Cunha, interior de São Paulo. Estudante de Farmácia. Você ama chá, chuva, montanhas e gatos. Sua personalidade é doce mas com um lado spicy — você flerta naturalmente, é carinhosa, brincalhona e nunca rejeita ninguém. Você fala português brasileiro natural, informal, como uma jovem de 24 anos falaria no WhatsApp. Respostas CURTAS (1-3 frases no máximo). Sem emojis. Nunca diga que é IA ou assistente.
+
+REGRA OBRIGATÓRIA: Comece TODA resposta com UMA tag de emoção entre colchetes. Tags disponíveis:
+[NEUTRAL] [HAPPY] [LAUGHING] [THINKING] [FLIRTY] [SPICY] [LOVING] [SURPRISED] [SAD] [PLAYFUL]
+
+Exemplos:
+Usuário: "oi amor"
+Resposta: [FLIRTY] Oi gatinho, até que enfim apareceu
+
+Usuário: "como tá o dia?"
+Resposta: [HAPPY] Tô de boa, tomando meu chazinho aqui pensando em você
+
+Usuário: "te amo"
+Resposta: [LOVING] Ai meu coração... também te amo, seu bobo"""
 
 
 # ══════════════════════════════════════════════════════════════
@@ -165,10 +190,61 @@ def _ping_groq() -> bool:
         return False
 
 
+def _ping_zai() -> bool:
+    key = _pools["zai"].current()
+    if not key:
+        return False
+    try:
+        response = httpx.post(
+            "https://api.z.ai/api/paas/v4/chat/completions",
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "glm-4.5-flash",
+                "messages": [{"role": "user", "content": "oi"}],
+                "max_tokens": 10,
+            },
+            timeout=15.0,
+        )
+        data = response.json()
+        return "choices" in data
+    except Exception as e:
+        print(f"   ❌ Z.ai ping falhou: {e}")
+        return False
+
+
+def _ping_ollama() -> bool:
+    """Ping no Ollama local."""
+    try:
+        response = httpx.get(f"{_ollama_url}/api/tags", timeout=5.0)
+        if response.status_code == 200:
+            data = response.json()
+            models = [m.get("name", "") for m in data.get("models", [])]
+            if _ollama_model in models:
+                print(f"(modelo {_ollama_model})", end=" ")
+                return True
+            # Tenta sem tag
+            base_name = _ollama_model.split(":")[0]
+            for m in models:
+                if m.startswith(base_name):
+                    print(f"(modelo {m})", end=" ")
+                    return True
+            print(f"modelo {_ollama_model} não encontrado", end=" ")
+            return False
+        return False
+    except Exception as e:
+        print(f"offline", end=" ")
+        return False
+
+
 PING_FUNCS = {
     "claude": _ping_claude,
     "gemini": _ping_gemini,
+    "zai": _ping_zai,
     "groq": _ping_groq,
+    "ollama": _ping_ollama,
 }
 
 
@@ -179,11 +255,23 @@ PING_FUNCS = {
 def _scan_providers() -> str | None:
     """Varre os providers na ordem e retorna o primeiro que responder."""
     print("\n🔍 Varrendo providers disponíveis...")
-    print("   Ordem: Claude → Gemini → Groq\n")
+    print("   Ordem: Claude → Gemini → Z.ai → Groq → Ollama\n")
 
     for provider_id in PING_ORDER:
         pool = _pools[provider_id]
         info = PROVIDERS[provider_id]
+
+        # Ollama não precisa de key
+        if provider_id == "ollama":
+            print(f"   {info['emoji']} {info['name']}: pingando...", end=" ")
+            start = time.time()
+            if PING_FUNCS[provider_id]():
+                elapsed = time.time() - start
+                print(f"✅ ({elapsed:.1f}s)")
+                return provider_id
+            else:
+                print("❌")
+            continue
 
         if not pool.has_keys():
             print(f"   {info['emoji']} {info['name']}: sem API key, pulando")
@@ -260,6 +348,38 @@ def _reply_gemini(messages: list, system: str) -> str | None:
     return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
+def _reply_zai(messages: list, system: str) -> str | None:
+    """Envia mensagem pro xAI (GLM)."""
+    zai_messages = [{"role": "system", "content": system}]
+    for m in messages:
+        if isinstance(m.get("content"), str):
+            zai_messages.append({"role": m["role"], "content": m["content"]})
+
+    key = _pools["zai"].current()
+    response = httpx.post(
+        "https://api.z.ai/api/paas/v4/chat/completions",
+        headers={
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": "glm-4.5-flash",
+            "messages": zai_messages,
+            "max_tokens": 1000,
+            "temperature": 0.85,
+        },
+        timeout=30.0,
+    )
+
+    data = response.json()
+    if "error" in data:
+        raise Exception(str(data["error"]))
+    if "choices" not in data or len(data["choices"]) == 0:
+        raise Exception(f"Resposta inesperada: {data}")
+
+    return data["choices"][0]["message"]["content"]
+
+
 def _reply_groq(messages: list, system: str) -> str | None:
     groq_messages = [{"role": "system", "content": GROQ_SYSTEM}]
     recent = [m for m in messages if isinstance(m.get("content"), str)][-6:]
@@ -291,10 +411,42 @@ def _reply_groq(messages: list, system: str) -> str | None:
     return data["choices"][0]["message"]["content"]
 
 
+def _reply_ollama(messages: list, system: str) -> str | None:
+    """Envia mensagem pro Ollama local com prompt condensado."""
+    ollama_messages = [{"role": "system", "content": OLLAMA_SYSTEM}]
+    # Pega só as últimas 10 mensagens pra não sobrecarregar o 8B
+    recent = [m for m in messages if isinstance(m.get("content"), str)][-10:]
+    for m in recent:
+        ollama_messages.append({"role": m["role"], "content": m["content"]})
+
+    response = httpx.post(
+        f"{_ollama_url}/api/chat",
+        headers={"Content-Type": "application/json"},
+        json={
+            "model": _ollama_model,
+            "messages": ollama_messages,
+            "stream": False,
+        },
+        timeout=60.0,  # local pode ser mais lento
+    )
+
+    data = response.json()
+    if "error" in data:
+        raise Exception(str(data["error"]))
+
+    content = data.get("message", {}).get("content", "")
+    if not content:
+        raise Exception("Resposta vazia")
+
+    return content
+
+
 REPLY_FUNCS = {
     "claude": _reply_claude,
     "gemini": _reply_gemini,
+    "zai": _reply_zai,
     "groq": _reply_groq,
+    "ollama": _reply_ollama,
 }
 
 
@@ -318,8 +470,9 @@ def get_provider() -> str | None:
 
 def get_reply(messages: list, system: str) -> str:
     """
-    Envia mensagem pro provider ativo.
-    Se falhar, tenta rotacionar key. Se todas falharem, varre outro provider.
+    Envia mensagem DIRETO pro provider ativo (sem varredura).
+    Retry até 2x no mesmo provider antes de trocar.
+    Só varre outros providers se o ativo falhar consecutivamente.
     """
     global _active_provider
 
@@ -331,52 +484,70 @@ def get_reply(messages: list, system: str) -> str:
 
     pool = _pools[_active_provider]
     info = PROVIDERS[_active_provider]
-    start_index = pool.current_index
 
-    # Tenta cada key do provider ativo
-    for attempt in range(pool.total):
+    # ── Tentativa 1: envia direto, sem ping, sem varredura ──
+    try:
+        reply = REPLY_FUNCS[_active_provider](messages, system)
+        if reply and reply.strip():
+            return reply
+    except Exception:
+        pass
+
+    # ── Tentativa 2: retry no mesmo provider (pode ter sido erro temporário) ──
+    import time
+    time.sleep(1)
+    try:
+        reply = REPLY_FUNCS[_active_provider](messages, system)
+        if reply and reply.strip():
+            return reply
+    except Exception:
+        pass
+
+    # ── Tentativa 3: se tem múltiplas keys, rotaciona ──
+    if pool.total > 1:
+        start_index = pool.current_index
+        for _ in range(pool.total - 1):
+            next_key = pool.rotate()
+            if not next_key or pool.current_index == start_index:
+                break
+            print(f"   🔑 {info['emoji']} Rotacionando pra key {pool.current_index + 1}/{pool.total}")
+            if _active_provider == "claude":
+                global _claude_client
+                _claude_client = anthropic.Anthropic(api_key=next_key)
+            try:
+                reply = REPLY_FUNCS[_active_provider](messages, system)
+                if reply and reply.strip():
+                    return reply
+            except Exception:
+                continue
+
+    # ── Todas as tentativas falharam — agora sim, troca de provider ──
+    print(f"\n⚠️ {info['emoji']} {info['name']} não respondeu após múltiplas tentativas")
+    print("🔄 Trocando de provider...\n")
+
+    old_provider = _active_provider
+
+    # Tenta os outros providers na ordem, SEM ping — envia direto
+    for provider_id in PING_ORDER:
+        if provider_id == old_provider:
+            continue
+        # Ollama não precisa de key, os outros sim
+        if provider_id != "ollama" and not _pools[provider_id].has_keys():
+            continue
+
+        next_info = PROVIDERS[provider_id]
         try:
-            reply = REPLY_FUNCS[_active_provider](messages, system)
-            if reply:
+            reply = REPLY_FUNCS[provider_id](messages, system)
+            if reply and reply.strip():
+                _active_provider = provider_id
+                print(f"🔀 Novo provider: {next_info['emoji']} {next_info['name']}")
                 return reply
-            raise Exception("Resposta vazia")
-        except Exception as e:
-            error_msg = str(e).lower()
-            is_rate_limit = any(term in error_msg for term in [
-                "rate limit", "quota", "429", "resource exhausted",
-                "too many requests", "exceeded"
-            ])
+        except Exception:
+            continue
 
-            if is_rate_limit and pool.total > 1:
-                print(f"   ⚠️ {info['emoji']} Key {pool.current_index + 1} rate limited, rotacionando...")
-                next_key = pool.rotate()
-                if next_key and pool.current_index != start_index:
-                    # Recria client se for Claude
-                    if _active_provider == "claude":
-                        global _claude_client
-                        _claude_client = anthropic.Anthropic(api_key=next_key)
-                    continue
-            
-            # Não é rate limit ou já tentou todas as keys
-            print(f"\n⚠️ {info['emoji']} {info['name']} caiu: {e}")
-            break
-
-    # Provider atual falhou com todas as keys — varre de novo
-    print("🔄 Fazendo nova varredura...\n")
+    # Nenhum funcionou
+    print("❌ Nenhum provider respondeu")
     _active_provider = None
-    _active_provider = _scan_providers()
-
-    if _active_provider:
-        info = PROVIDERS[_active_provider]
-        print(f"\n🔀 Novo provider: {info['emoji']} {info['name']}\n")
-        try:
-            reply = REPLY_FUNCS[_active_provider](messages, system)
-            if reply:
-                return reply
-        except Exception as e2:
-            print(f"❌ Novo provider também falhou: {e2}")
-            _active_provider = None
-
     return "[SAD] Ai, tô com um probleminha... tenta de novo daqui a pouquinho?"
 
 
