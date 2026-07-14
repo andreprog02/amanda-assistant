@@ -12,7 +12,7 @@ from prompt import AMANDA_PROMPT
 from database import (
     init_db, create_conversation, get_latest_conversation,
     save_message, get_conversation_messages, get_all_memories,
-    get_memories_summary, save_memory,
+    get_memories_summary, save_memory, get_stats,
 )
 from news import get_news_context
 from mood import get_mood_context
@@ -21,7 +21,8 @@ from pop_culture import get_pop_culture_context
 from science_tech import get_science_tech_context
 from roleplay import get_roleplay_image, get_roleplay_context
 from personality import get_engine, quick_analyze, analyze_user_message
-from provider import get_provider, get_reply, get_active_provider_name, force_rescan
+from provider import get_provider, get_reply, get_active_provider_name, get_active_provider_id, force_rescan
+from plans import check_limit, increment_daily_count, get_limit_message, can_use_voice, get_plan_info, list_plans
 from voice_provider import get_voice_provider, generate_tts, get_active_voice_name, force_voice_rescan
 
 
@@ -57,11 +58,11 @@ def get_or_create_conversation() -> int:
     return current_conversation_id
 
 
-def safe_save_message(conv_id, role, content):
+def safe_save_message(conv_id, role, content, provider=None):
     """Salva mensagem se o banco estiver disponível."""
     if db_available and conv_id:
         try:
-            return save_message(conv_id, role, content)
+            return save_message(conv_id, role, content, provider=provider)
         except:
             pass
     return None
@@ -292,10 +293,27 @@ async def chat(request: Request):
     try:
         body = await request.json()
         messages = body.get("messages", [])
+        user_id = body.get("user_id", "local")
         conv_id = get_or_create_conversation()
+
+        # ── Verifica limite do plano ──
+        limit = check_limit(user_id)
+        if not limit["allowed"]:
+            limit_reply = get_limit_message(user_id)
+            emotion, reply = extract_emotion(limit_reply)
+            image = get_roleplay_image(emotion)
+            return JSONResponse({
+                "reply": reply,
+                "emotion": emotion,
+                "audio": None,
+                "image": image,
+                "limit_reached": True,
+                "plan_info": get_plan_info(user_id),
+            })
 
         user_content = messages[-1]["content"] if messages else ""
         user_msg_id = safe_save_message(conv_id, "user", user_content)
+        increment_daily_count(user_id)
 
         # ── Processar stats de personalidade ──
         try:
@@ -309,18 +327,19 @@ async def chat(request: Request):
         if user_content:
             extract_memories(user_content, user_msg_id)
 
-        # Pega resposta (Claude ou fallback)
+        # Pega resposta
         raw_reply = get_llm_reply(messages)
 
         emotion, reply = extract_emotion(raw_reply)
-        safe_save_message(conv_id, "assistant", reply)
+        safe_save_message(conv_id, "assistant", reply, provider=get_active_provider_id())
 
-        # TTS
+        # TTS — só se o plano permite
         audio_b64 = None
-        try:
-            audio_b64 = await generate_tts(reply)
-        except Exception as e:
-            print(f"⚠️ Erro no TTS: {e}")
+        if can_use_voice(user_id):
+            try:
+                audio_b64 = await generate_tts(reply)
+            except Exception as e:
+                print(f"⚠️ Erro no TTS: {e}")
 
         image = get_roleplay_image(emotion)
 
@@ -403,7 +422,7 @@ async def image_chat(
         emotion, reply = extract_emotion(raw_reply)
         print(f"📸 Foto recebida | Emoção: {emotion}")
 
-        safe_save_message(conv_id, "assistant", reply)
+        safe_save_message(conv_id, "assistant", reply, provider=get_active_provider_id())
 
         audio_b64_reply = None
         try:
@@ -466,7 +485,7 @@ async def voice_chat(
         print(f"😊 Emoção: {emotion}")
 
         # 4. Salva resposta (sem tag)
-        safe_save_message(conv_id, "assistant", reply)
+        safe_save_message(conv_id, "assistant", reply, provider=get_active_provider_id())
 
         # 5. Gera áudio
         audio_b64 = None
@@ -577,6 +596,28 @@ async def provider_rescan():
         "voice": get_active_voice_name(),
         "connected": llm_result is not None,
     })
+
+
+# ── Endpoint: info do plano do usuário ──
+@app.get("/api/plan")
+async def plan_info(user_id: str = "local"):
+    return JSONResponse(get_plan_info(user_id))
+
+
+# ── Endpoint: listar planos disponíveis ──
+@app.get("/api/plans")
+async def plans_list():
+    return JSONResponse({"plans": list_plans()})
+
+
+# ── Endpoint: estatísticas do banco ──
+@app.get("/api/stats")
+async def db_stats():
+    try:
+        stats = get_stats()
+        return JSONResponse(stats)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 # ── Endpoint: saudação inicial dinâmica ──
