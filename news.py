@@ -24,6 +24,10 @@ RSS_FEEDS = [
     "https://www.youtube.com/feeds/videos.xml?channel_id=UCobKO7tmF9Z74ail3Mrwb_g",
     # YouTube — Linhagem Geek (cultura pop, reviews, filmes, séries)
     "https://www.youtube.com/feeds/videos.xml?channel_id=UCjuiVJmqil8VdRen0gh3Ewg",
+    # YouTube — Olhar Digital (tecnologia, IA, gadgets)
+    "https://www.youtube.com/feeds/videos.xml?channel_id=UCGV72aVJuWP0QPNGH4YgIww",
+    # YouTube — Space Today (astronomia, espaço)
+    "https://www.youtube.com/feeds/videos.xml?channel_id=UC_Fk7hHbl7vv_7K8tYqJd5A",
 ]
 
 def fetch_news() -> list:

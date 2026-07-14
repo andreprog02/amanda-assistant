@@ -698,15 +698,15 @@ def quick_analyze(user_text: str) -> dict:
 
     # ── Carinho ──
     caring_words = ["saudade", "te amo", "amor", "fofa", "querida", "carinho",
-                     "abraço", "cuidado", "preocup"]
+                     "abraço", "cuidado", "preocupado"]
     if any(w in text for w in caring_words):
         tone = "carinhoso"
         effects = {"carinho": 1.0, "confianca": 0.5, "alegria": 0.5, "abertura": 0.3}
         intensity = 0.7
 
     # ── Tristeza / desabafo ──
-    sad_words = ["triste", "mal", "chorand", "sozinho", "sozinha", "angústia",
-                  "deprim", "ansied", "desanim", "não aguento", "cansado", "cansada"]
+    sad_words = ["triste", "mal", "chorando", "sozinho", "sozinha", "angústia",
+                  "deprimido", "ansioso", "desanimado", "não aguento", "cansado", "cansada"]
     if any(w in text for w in sad_words):
         tone = "desabafo"
         effects = {"abertura": 1.0, "carinho": 0.8, "confianca": 0.5,
@@ -714,7 +714,7 @@ def quick_analyze(user_text: str) -> dict:
         intensity = 0.7
 
     # ── Humor / diversão ──
-    fun_words = ["kkk", "haha", "rsrs", "engraçad", "piada", "morr", "rachei",
+    fun_words = ["kkk", "haha", "rsrs", "engraçado", "piada", "morr", "rachei",
                   "zoeira", "zueira", "meme"]
     if any(w in text for w in fun_words):
         tone = "divertido"
@@ -723,7 +723,7 @@ def quick_analyze(user_text: str) -> dict:
 
     # ── Agressividade ──
     angry_words = ["idiota", "burra", "inútil", "merda", "foda-se", "cala a boca",
-                    "odeio", "chata", "irritante", "pau no cu"]
+                    "odeio", "chata", "irritante","zé buceta", "pau no cu"]
     if any(w in text for w in angry_words):
         tone = "agressivo"
         effects = {"irritacao": 1.5, "confianca": -1.0, "carinho": -0.8,

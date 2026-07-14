@@ -18,6 +18,7 @@ from news import get_news_context
 from mood import get_mood_context
 from weather import get_weather_context
 from pop_culture import get_pop_culture_context
+from science_tech import get_science_tech_context
 from roleplay import get_roleplay_image, get_roleplay_context
 from personality import get_engine, quick_analyze, analyze_user_message
 from provider import get_provider, get_reply, get_active_provider_name, force_rescan
@@ -199,6 +200,10 @@ IMPORTANTE: Quando você não souber algo de verdade, admita com charme. "Ai, is
     pop = get_pop_culture_context()
     if pop:
         prompt += "\n\n" + pop
+
+    scitech = get_science_tech_context()
+    if scitech:
+        prompt += "\n\n" + scitech
 
     mood = get_mood_context()
     prompt += "\n\n" + mood
