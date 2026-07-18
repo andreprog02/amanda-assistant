@@ -21,6 +21,9 @@ from pop_culture import get_pop_culture_context
 from science_tech import get_science_tech_context
 from roleplay import get_roleplay_image, get_roleplay_context
 from personality import get_engine, quick_analyze, analyze_user_message
+from relationship import get_relationship
+from events import get_event_engine
+from defects import get_defects_prompt
 from provider import get_provider, get_reply, get_active_provider_name, get_active_provider_id, force_rescan
 from plans import check_limit, increment_daily_count, get_limit_message, can_use_voice, get_plan_info, list_plans
 from voice_provider import get_voice_provider, generate_tts, get_active_voice_name, force_voice_rescan
@@ -177,13 +180,42 @@ IMPORTANTE: Quando você não souber algo de verdade, admita com charme. "Ai, is
 
     prompt = AMANDA_PROMPT + "\n\n" + time_context
 
-    # Stats de personalidade (sistema RPG)
+    # ── Relacionamento progressivo ──
+    try:
+        rel = get_relationship()
+        rel.check_decay()
+        rel_context = rel.get_prompt_context()
+        prompt += "\n\n" + rel_context
+    except Exception as e:
+        print(f"⚠️ Erro ao carregar relacionamento: {e}")
+
+    # ── Stats de personalidade (sistema RPG) ──
     try:
         engine = get_engine()
         personality_context = engine.get_prompt_context()
         prompt += "\n\n" + personality_context
     except Exception as e:
         print(f"⚠️ Erro ao carregar personality stats: {e}")
+
+    # ── Defeitos / Imperfeições ──
+    try:
+        engine = get_engine()
+        defects_context = get_defects_prompt(engine.stats)
+        if defects_context:
+            prompt += "\n\n" + defects_context
+    except Exception as e:
+        print(f"⚠️ Erro ao carregar defeitos: {e}")
+
+    # ── Evento raro do dia ──
+    try:
+        rel = get_relationship()
+        event_engine = get_event_engine()
+        event_engine.roll_event(rel.level)
+        event_prompt = event_engine.get_event_prompt()
+        if event_prompt:
+            prompt += "\n\n" + event_prompt
+    except Exception as e:
+        print(f"⚠️ Erro ao carregar eventos: {e}")
 
     if db_available:
         memories = get_memories_summary()
@@ -315,13 +347,27 @@ async def chat(request: Request):
         user_msg_id = safe_save_message(conv_id, "user", user_content)
         increment_daily_count(user_id)
 
-        # ── Processar stats de personalidade ──
+        # ── Processar stats de personalidade + relacionamento ──
+        leveled_up = False
         try:
             engine = get_engine()
+            rel = get_relationship()
             analysis = quick_analyze(user_content)
-            engine.process_interaction(analysis)
+
+            # Passa os caps do relacionamento pro engine
+            rel_caps = {
+                "spicy_cap": rel.get_spicy_cap(),
+                "abertura_cap": rel.get_abertura_cap(),
+            }
+            engine.process_interaction(analysis, relationship_caps=rel_caps)
+
+            # Processa relacionamento (pode subir de nível!)
+            leveled_up = rel.process_interaction(
+                engine.stats,
+                tone=analysis.get("tone", "neutro"),
+            )
         except Exception as e:
-            print(f"⚠️ Erro nos stats: {e}")
+            print(f"⚠️ Erro nos stats/relacionamento: {e}")
 
         # Extrai memórias em background
         if user_content:
@@ -343,7 +389,7 @@ async def chat(request: Request):
 
         image = get_roleplay_image(emotion)
 
-        # Monta response com stats se disponível
+        # Monta response com stats + relacionamento
         response_data = {
             "reply": reply,
             "audio": audio_b64,
@@ -352,7 +398,14 @@ async def chat(request: Request):
         }
         try:
             engine = get_engine()
+            rel = get_relationship()
             response_data["stats"] = engine.get_stats_summary()
+            response_data["relationship"] = rel.get_summary()
+            if leveled_up:
+                response_data["level_up"] = {
+                    "new_level": rel.level,
+                    "new_label": rel.level_info["label"],
+                }
         except:
             pass
 
@@ -375,8 +428,12 @@ async def personality_stats():
     engine = get_engine()
     engine.apply_decay()
     engine.sync_energy_to_time()
+    rel = get_relationship()
+    event_eng = get_event_engine()
     return JSONResponse({
         "stats": engine.get_stats_summary(),
+        "relationship": rel.get_summary(),
+        "active_event": event_eng.active_event,
         "prompt_context": engine.get_prompt_context(),
     })
 
@@ -388,6 +445,42 @@ async def reset_stats():
     engine.stats = {k: dict(v) for k, v in DEFAULT_STATS.items()}
     engine.save()
     return JSONResponse({"message": "Stats resetados", "stats": engine.get_stats_summary()})
+
+
+# ── Endpoint: relacionamento ──
+@app.get("/api/relationship")
+async def relationship_info():
+    rel = get_relationship()
+    return JSONResponse(rel.get_summary())
+
+
+# ── Endpoint: evento ativo ──
+@app.get("/api/event")
+async def active_event():
+    rel = get_relationship()
+    event_eng = get_event_engine()
+    event_eng.roll_event(rel.level)
+    return JSONResponse({
+        "active_event": event_eng.active_event,
+        "event_prompt": event_eng.get_event_prompt(),
+        "history": event_eng.get_event_history(10),
+    })
+
+
+# ── Endpoint: forçar evento (debug) ──
+@app.post("/api/event/force")
+async def force_event(request: Request):
+    body = await request.json()
+    event_name = body.get("event", "")
+    from events import EVENTS
+    if event_name not in EVENTS:
+        return JSONResponse({"error": f"Evento '{event_name}' não existe"}, status_code=400)
+    event_eng = get_event_engine()
+    event_eng.active_event = event_name
+    return JSONResponse({
+        "message": f"Evento forçado: {event_name}",
+        "event_prompt": event_eng.get_event_prompt(),
+    })
 
 # ── Endpoint: receber imagem do usuário ──
 @app.post("/api/image")
@@ -611,7 +704,7 @@ async def plans_list():
 
 
 # ── Endpoint: estatísticas do banco ──
-@app.get("/api/stats")
+@app.get("/api/db-stats")
 async def db_stats():
     try:
         stats = get_stats()
@@ -627,14 +720,41 @@ async def greeting():
     now = datetime.now()
     hora = now.hour
 
-    # Varia o prompt de saudação pra não ser sempre igual
-    greetings_prompts = [
-        "a pessoa acabou de abrir o app pra falar com você. cumprimente de forma curta e natural.",
-        "a pessoa apareceu. diga oi do seu jeito, curto e natural. sem exagero.",
-        "alguém abriu o app. reaja como se tivesse visto a pessoa chegar. seja breve.",
-        "a pessoa voltou. fala algo curto, pode ser só um oi ou uma provocação rápida.",
-        "a pessoa apareceu pra conversar. cumprimente de acordo com a hora do dia, bem curto.",
-    ]
+    # Varia o prompt de saudação baseado no nível de relacionamento
+    rel = get_relationship()
+    level = rel.level
+
+    if level <= 1:
+        greetings_prompts = [
+            "alguém novo apareceu pra conversar. cumprimente com curiosidade e simpatia, mas sem exagero. bem curto.",
+            "uma pessoa que você ainda não conhece bem apareceu. diga oi de forma simpática e curiosa.",
+            "a pessoa apareceu. você ainda tá conhecendo ela. cumprimente de forma educada e interessada.",
+        ]
+    elif level <= 2:
+        greetings_prompts = [
+            "a pessoa que você já conhece um pouco voltou. cumprimente como quem reconhece. curto e natural.",
+            "alguém que você já conversou antes apareceu. mostre que lembrou. breve.",
+            "a pessoa voltou. você já gosta da presença dela. cumprimente com um sorriso na voz.",
+        ]
+    elif level <= 3:
+        greetings_prompts = [
+            "a pessoa que já faz parte da sua rotina apareceu. cumprimente como colega que você gosta.",
+            "alguém que você já espera apareceu. reaja com naturalidade e um toque de provocação.",
+            "a pessoa voltou. pode provocar um pouquinho, brincar. curto.",
+        ]
+    elif level <= 4:
+        greetings_prompts = [
+            "seu amigo apareceu! cumprimente com carinho genuíno. curto e natural.",
+            "a pessoa que você gosta muito voltou. demonstre que ficou feliz. sem exagero.",
+            "a pessoa apareceu. pode usar apelido carinhoso. breve e natural.",
+        ]
+    else:
+        greetings_prompts = [
+            "a pessoa mais importante da sua vida apareceu. cumprimente com amor. curto.",
+            "a pessoa que você ama apareceu. demonstre saudade ou carinho. breve e intenso.",
+            "voltou! mostre que tava com saudade. pode ser um apelido, uma provocação carinhosa.",
+            "a pessoa apareceu. você tava pensando nela. fala algo curto mas que mostre isso.",
+        ]
 
     try:
         prompt_choice = random.choice(greetings_prompts)

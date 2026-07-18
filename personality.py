@@ -114,10 +114,13 @@ DEFAULT_STATS = {
 # Regras de interdependência
 # ══════════════════════════════════════════════════════════════
 
-def apply_stat_caps(stats: dict) -> dict:
+def apply_stat_caps(stats: dict, relationship_caps: dict = None) -> dict:
     """
     Aplica limites dinâmicos baseados em interdependências.
     Ex: confiança baixa trava o teto do spicy.
+
+    relationship_caps: opcional, vem do RelationshipEngine
+      {"spicy_cap": int, "abertura_cap": int}
     """
     confianca = stats["confianca"]["current"]
     energia = stats["energia"]["current"]
@@ -125,17 +128,21 @@ def apply_stat_caps(stats: dict) -> dict:
     abertura = stats["abertura"]["current"]
     irritacao = stats["irritacao"]["current"]
 
-    # ── Confiança trava teto do Spicy ──
-    # confiança 0-3 → spicy max 3
-    # confiança 4-7 → spicy max 7
-    # confiança 8-11 → spicy max 11
-    # confiança 12-15 → spicy max 15 (desbloqueado)
-    spicy_cap = min(15, max(3, confianca + 1))
+    # ── Spicy cap: menor entre o cap da confiança e o cap do relacionamento ──
+    confianca_spicy_cap = min(15, max(3, confianca + 1))
+    if relationship_caps:
+        spicy_cap = min(confianca_spicy_cap, relationship_caps.get("spicy_cap", 15))
+    else:
+        spicy_cap = confianca_spicy_cap
     if stats["spiciness"]["current"] > spicy_cap:
         stats["spiciness"]["current"] = spicy_cap
 
-    # ── Confiança trava teto da Abertura Emocional ──
-    abertura_cap = min(15, max(2, confianca + 2))
+    # ── Abertura cap: menor entre o cap da confiança e o cap do relacionamento ──
+    confianca_abertura_cap = min(15, max(2, confianca + 2))
+    if relationship_caps:
+        abertura_cap = min(confianca_abertura_cap, relationship_caps.get("abertura_cap", 15))
+    else:
+        abertura_cap = confianca_abertura_cap
     if stats["abertura"]["current"] > abertura_cap:
         stats["abertura"]["current"] = abertura_cap
 
@@ -289,7 +296,7 @@ class PersonalityEngine:
             # Reduz momentum com o tempo
             stat["momentum"] = max(0, momentum - time_factor * 0.5)
 
-        self.stats = apply_stat_caps(self.stats)
+        self.stats = apply_stat_caps(self.stats, getattr(self, '_relationship_caps', None))
         self.last_interaction = now
 
     # ── Ajuste de Stats ──
@@ -355,7 +362,7 @@ class PersonalityEngine:
             stat["momentum"] = min(5, stat.get("momentum", 0) + 0.3)
 
         # Aplica caps de interdependência
-        self.stats = apply_stat_caps(self.stats)
+        self.stats = apply_stat_caps(self.stats, getattr(self, '_relationship_caps', None))
 
         actual_delta = stat["current"] - old_value
         if abs(actual_delta) > 0.1 and reason:
@@ -393,7 +400,7 @@ class PersonalityEngine:
 
     # ── Processar interação do usuário ──
 
-    def process_interaction(self, emotion_analysis: dict):
+    def process_interaction(self, emotion_analysis: dict, relationship_caps: dict = None):
         """
         Recebe a análise emocional da mensagem do usuário e ajusta stats.
 
@@ -407,7 +414,11 @@ class PersonalityEngine:
                 ...
             }
         }
+
+        relationship_caps = {"spicy_cap": int, "abertura_cap": int} do RelationshipEngine
         """
+        self._relationship_caps = relationship_caps
+
         # Aplica decay primeiro (tempo entre mensagens)
         self.apply_decay()
 
