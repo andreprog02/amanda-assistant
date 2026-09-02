@@ -27,6 +27,7 @@ from defects import get_defects_prompt
 from provider import get_provider, get_reply, get_active_provider_name, get_active_provider_id, force_rescan
 from plans import check_limit, increment_daily_count, get_limit_message, can_use_voice, get_plan_info, list_plans
 from voice_provider import get_voice_provider, generate_tts, get_active_voice_name, force_voice_rescan
+from router import AmandaRouter
 
 
 
@@ -47,6 +48,10 @@ except Exception:
 print("\n🚀 Iniciando Amanda...")
 get_provider()
 get_voice_provider()
+
+# Motor local — respostas instantâneas sem API
+amanda_router = AmandaRouter()
+print("⚡ Motor local carregado")
 
 # Conversa atual
 current_conversation_id = None
@@ -373,28 +378,52 @@ async def chat(request: Request):
         if user_content:
             extract_memories(user_content, user_msg_id)
 
-        # Pega resposta
-        raw_reply = get_llm_reply(messages)
+        # ══════════════════════════════════════
+        # Tenta resposta local primeiro (⚡ sem API)
+        # ══════════════════════════════════════
+        local_result = amanda_router.try_local(user_content)
 
-        emotion, reply = extract_emotion(raw_reply)
-        safe_save_message(conv_id, "assistant", reply, provider=get_active_provider_id())
+        if local_result:
+            # ⚡ Resposta local — instantânea
+            reply = local_result["text"]
+            emotion = local_result["emotion"]
+            safe_save_message(conv_id, "assistant", reply, provider="local")
+            print(f"⚡ LOCAL [{emotion}]: {reply}")
 
-        # TTS — só se o plano permite
-        audio_b64 = None
-        if can_use_voice(user_id):
-            try:
-                audio_b64 = await generate_tts(reply)
-            except Exception as e:
-                print(f"⚠️ Erro no TTS: {e}")
+            audio_b64 = None
+            if can_use_voice(user_id):
+                try:
+                    audio_b64 = await generate_tts(reply)
+                except Exception as e:
+                    print(f"⚠️ Erro no TTS: {e}")
 
-        image = get_roleplay_image(emotion)
+            image = get_roleplay_image(emotion)
 
-        # Monta response com stats + relacionamento
+        else:
+            # ☁️ Nuvem — fluxo normal
+            raw_reply = get_llm_reply(messages)
+            emotion, reply = extract_emotion(raw_reply)
+            safe_save_message(conv_id, "assistant", reply, provider=get_active_provider_id())
+
+            # Sincroniza humor local com o que a nuvem escolheu
+            amanda_router.notify_cloud_response(emotion)
+
+            audio_b64 = None
+            if can_use_voice(user_id):
+                try:
+                    audio_b64 = await generate_tts(reply)
+                except Exception as e:
+                    print(f"⚠️ Erro no TTS: {e}")
+
+            image = get_roleplay_image(emotion)
+
+        # ── Monta response (igual pros dois caminhos) ──
         response_data = {
             "reply": reply,
             "audio": audio_b64,
             "emotion": emotion,
             "image": image,
+            "source": local_result["source"] if local_result else "cloud",
         }
         try:
             engine = get_engine()
@@ -416,8 +445,6 @@ async def chat(request: Request):
         return JSONResponse(
             {"reply": "Hmm, algo deu errado... me perdoa?", "audio": None},
             status_code=500,
-
-
         )
 
 
@@ -661,7 +688,7 @@ async def list_expressions():
                         expressions[emotion]['video'] = f"/static/roleplay/{main_folder}/{f}"
                     elif ext == '.png':
                         expressions[emotion]['image'] = f"/static/roleplay/{main_folder}/{f}"
-        folder = main_folder
+            folder = main_folder
 
     return JSONResponse({
         "roleplay": rp_name,
@@ -711,6 +738,12 @@ async def db_stats():
         return JSONResponse(stats)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── Endpoint: stats do router local (debug) ──
+@app.get("/api/router-stats")
+async def router_stats():
+    return JSONResponse(amanda_router.stats())
 
 
 # ── Endpoint: saudação inicial dinâmica ──
